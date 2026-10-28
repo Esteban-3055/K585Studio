@@ -12,6 +12,7 @@ if($PreviousInstaller){$firstInstaller=(Resolve-Path -LiteralPath $PreviousInsta
 $phases=@(@{Name='install';Installer=$firstInstaller},@{Name='upgrade';Installer=$installerAbsolute})
 foreach($item in $phases){
   $phase=$item.Name
+  Write-Output "Starting $phase using $($item.Installer)"
   $setup=Start-Process -FilePath $item.Installer -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/NOICONS','/NOAUTOLAUNCH=1',('/DIR="'+$testAbsolute+'"') -WindowStyle Hidden -PassThru -Wait
   if($setup.ExitCode -ne 0){throw "$phase failed: $($setup.ExitCode)"}
   $installedApp=Join-Path $testAbsolute 'K585Studio.exe'
@@ -22,11 +23,14 @@ foreach($item in $phases){
     if([version](Get-Item -LiteralPath $installedApp).VersionInfo.FileVersion -ne $expectedVersion){throw 'Installed upgrade has the wrong file version'}
   }
   $renderDirectory=Join-Path $testAbsolute ('checks-'+$phase)
+  Write-Output "Starting installed UI check after $phase"
   $smoke=Start-Process -FilePath $installedApp -ArgumentList '--ui-self-test',('"'+$renderDirectory+'"') -WindowStyle Hidden -PassThru -Wait
   if($smoke.ExitCode -ne 0){Get-Content -LiteralPath (Join-Path $renderDirectory 'ui-error.txt');throw 'Installed UI checks failed'}
   if((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash){throw 'Private data changed during install/upgrade'}
+  Write-Output "Completed $phase and installed UI check"
 }
 $uninstaller=Join-Path $testAbsolute 'unins000.exe'
+Write-Output 'Starting uninstall check'
 $uninstall=Start-Process -FilePath $uninstaller -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -WindowStyle Hidden -PassThru -Wait
 if($uninstall.ExitCode -ne 0){throw 'Uninstall failed'}
 if((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash){throw 'Uninstall removed private data'}
