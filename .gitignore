@@ -426,3 +426,10 @@ FodyWeavers.xsd
 
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
+
+# Generated portable builds and private device data
+artifacts/
+*.k585.json
+Backups/
+diagnostics*.json
+project.json

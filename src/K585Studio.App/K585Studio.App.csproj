@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AssemblyName>K585Studio</AssemblyName>
+    <Product>K585 Studio</Product>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../K585Studio.Core/K585Studio.Core.csproj" />
+    <EmbeddedResource Include="Assets/keyboard.png" />
+  </ItemGroup>
+</Project>
