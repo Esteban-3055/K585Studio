@@ -1,5 +1,7 @@
 # Protocolo habilitado en v0.2
 
+> Registro de v0.2. Desde v0.3.0 también se permite editar el perfil 1 y activar perfiles desde Studio. Consulta [los cambios de protocolo y su validación](PROTOCOL-v0.3.md).
+
 La descodificación parte del programa instalado y del firmware de este K585. El repositorio no redistribuye ninguno de esos binarios. Los comandos descritos modifican configuración; no son comandos de actualización de firmware.
 
 ## Correspondencia de teclas

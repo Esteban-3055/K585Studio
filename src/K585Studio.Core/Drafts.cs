@@ -24,10 +24,10 @@ public sealed class StudioDraft
     public Dictionary<int, int> ReportRates { get; set; } = [];
 
     public IReadOnlyDictionary<string, Assignment> Profile(int profile) =>
-        profile != 1 && Assignments.TryGetValue(profile, out var keys) ? keys : new Dictionary<string, Assignment>();
+        Assignments.TryGetValue(profile, out var keys) ? keys : new Dictionary<string, Assignment>();
     public void Assign(int profile, string key, Assignment? assignment)
     {
-        if (profile is < 2 or > 4) throw new InvalidOperationException("El perfil 1 está protegido.");
+        Protocol.RequireEditableProfile(profile);
         if (BindingCatalog.Key(key).Reserved) throw new InvalidOperationException("Fn es una función reservada.");
         if (assignment == null) { if (Assignments.TryGetValue(profile, out var old)) old.Remove(key); return; }
         if (!Assignments.TryGetValue(profile, out var map)) Assignments[profile] = map = [];
@@ -40,12 +40,12 @@ public sealed class StudioDraft
             Lighting.Values.Any(light => light is null) || Macros.Any(m => m is null || m.Name is null || m.Steps is null ||
                 m.Steps.Any(s => s is null || s.Action is null || s.Value is null)))
             throw new InvalidDataException("El proyecto contiene campos vacíos o incompletos.");
-        if (Schema != 1 || Assignments.Keys.Any(p => p is < 2 or > 4) || Lighting.Keys.Any(p => p is < 2 or > 4) ||
-            ReportRates.Any(p => p.Key is < 2 or > 4 || p.Value is < 0 or > 3) || Macros.Count > 100 ||
+        if (Schema != 1 || Assignments.Keys.Any(p => p is < 1 or > 4) || Lighting.Keys.Any(p => p is < 1 or > 4) ||
+            ReportRates.Any(p => p.Key is < 1 or > 4 || p.Value is < 0 or > 3) || Macros.Count > 100 ||
             Macros.Any(m => string.IsNullOrWhiteSpace(m.Name) || m.Name.Length > 100 || m.Id == Guid.Empty || m.Cycles is < 1 or > 999 || m.Steps.Count > 2000 ||
                 m.Steps.Any(s => s.DelayMs is < 0 or > 60000 || s.Value.Length > 200 ||
                     s.Action is not ("Tecla ↓" or "Tecla ↑" or "Ratón ↓" or "Ratón ↑" or "Rueda" or "Pausa" or "OEM"))))
-            throw new InvalidDataException("El proyecto contiene datos no admitidos o intenta modificar el perfil 1.");
+            throw new InvalidDataException("El proyecto contiene datos o números de perfil no admitidos.");
         foreach (var light in Lighting.Values) light.Validate();
         foreach (var map in Assignments.Values)
             foreach (var (key, value) in map)

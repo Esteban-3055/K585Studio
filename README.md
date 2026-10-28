@@ -2,12 +2,12 @@
 
 Aplicación independiente para Redragon K585 RGB (USB 0C45:5004), con el estilo de VictusFanControl. Windows 10/11 x64.
 
-**[Descargar el instalador EXE](https://github.com/Esteban-3055/K585Studio/releases/latest)** · [Funciones originales revisadas](docs/OEM-AUDIT.md) · [Protocolo v0.2](docs/PROTOCOL-v0.2.md)
+**[Descargar el instalador EXE](https://github.com/Esteban-3055/K585Studio/releases/latest)** · [Funciones originales revisadas](docs/OEM-AUDIT.md) · [Protocolo v0.3](docs/PROTOCOL-v0.3.md)
 
 ## Funciones
 
-- Cuatro perfiles con imagen interactiva del teclado y editor lateral. Perfil 1 protegido de forma permanente.
-- Reasignación de teclas, combinaciones, modificadores, ratón, multimedia y funciones en perfiles 2–4.
+- Cuatro perfiles editables con imagen interactiva del teclado y editor lateral. Seleccionarlos en Studio los activa en el dispositivo, con respaldo y lectura de verificación.
+- Reasignación de teclas, combinaciones, modificadores, ratón, multimedia y funciones en perfiles 1–4.
 - Biblioteca, editor y grabador de macros; escritura de macros nuevas sin sobrescribir las existentes. Captura solo dentro de la zona de grabación, sin hooks globales.
 - Biblioteca local separada del teclado: copia explícita, nombres sin colisiones y comprobación previa de memoria y compatibilidad. Las lecturas conservan las ediciones locales.
 - Iluminación y lluvia Serpenteo, color fijo/Colorful, brillo y velocidad con sus cinco niveles reales.
@@ -18,9 +18,11 @@ Aplicación independiente para Redragon K585 RGB (USB 0C45:5004), con el estilo 
 
 ## Uso
 
-Cierra el programa original y las copias anteriores. Studio lee el teclado al iniciar. Seleccionar un perfil en la barra lateral abre su editor; activa M2, M3 o M4 físicamente y vuelve a leer antes de aplicar cambios a ese perfil. Mover un slider o preparar una asignación modifica únicamente el proyecto; cada botón **Aplicar** escribe y verifica su ajuste.
+Cierra el programa original y las copias anteriores. Studio lee el teclado al iniciar y muestra el perfil que está activo. Seleccionar **Perfil 1–4** en la barra lateral activa ese perfil en el teclado y abre su editor después de verificarlo. El selector cambia únicamente el perfil activo y conserva todos los borradores. Al volver a abrir Studio se lee de nuevo el perfil activo del dispositivo, sin imponer otro automáticamente.
 
-El borde naranja indica una asignación distinta de fábrica o pendiente de aplicar. Fn y los botones M1–M4/REC conservan su función reservada. El perfil 1 es solo lectura, incluida su iluminación y frecuencia.
+Mover un slider o preparar una asignación modifica únicamente el proyecto; cada botón **Aplicar** escribe y verifica su ajuste en el perfil seleccionado. Si cambias de perfil con los botones físicos M1–M4 mientras Studio está abierto, pulsa **Conectar / leer** para actualizar la vista. Si una escritura queda sin verificar, la sesión se bloquea hasta volver a conectar explícitamente.
+
+El borde naranja indica una asignación distinta de fábrica o pendiente de aplicar. Fn y los botones M1–M4/REC conservan su función reservada. El perfil 1 admite las mismas ediciones que los perfiles 2–4 desde v0.3.0; su desbloqueo no restablece ni cambia su configuración existente.
 
 En **Macros**, usa **Copiar del teclado** para seleccionar una macro almacenada y editar una copia local. El panel indica si puede reutilizarse o necesita memoria nueva; también explica los límites antes de aplicar. El botón Aplicar asignación permanece deshabilitado para una macro que no puede guardarse. La comprobación definitiva se repite contra una lectura nueva del dispositivo.
 

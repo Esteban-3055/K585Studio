@@ -18,9 +18,42 @@ internal static class Program
         if (!first) { if(args.Length==0)MessageBox.Show("K585 Studio ya está abierto.", "K585 Studio"); return 2; }
         if (args.Contains("--read-only-diagnostics")) return Diagnose();
         if (args.Contains("--hardware-self-test")) return HardwareCheck();
+        if (args.Contains("--profile-self-test")) return ProfileCheck();
         ApplicationConfiguration.Initialize();
         Application.Run(new MainForm());
         return 0;
+    }
+
+    private static int ProfileCheck()
+    {
+        string reportPath=Path.Combine(Storage.Root,"profile-checks-v03.json");
+        var checks=new List<string>();int? initial=null,active=null;
+        void Save(string stage,bool restored,string? error=null)
+        {
+            Directory.CreateDirectory(Storage.Root);
+            File.WriteAllText(reportPath,JsonSerializer.Serialize(new{version=Updates.Current.ToString(),stage,restored,initial,active,checks,error,utc=DateTimeOffset.UtcNow},new JsonSerializerOptions{WriteIndented=true}));
+        }
+        try
+        {
+            using var session=new KeyboardSession(NativeHid.Open(),Storage.Backup);
+            var baseline=session.RefreshAsync().GetAwaiter().GetResult();initial=active=baseline.ActiveProfile;
+            if(initial is not (>=1 and <=4))throw new InvalidDataException("Perfil inicial no reconocido.");
+            Save("baseline-backed-up",true);
+            foreach(int profile in Enumerable.Range(1,4).Where(p=>p!=initial))
+            {
+                NativeHid.RequireOtherAppsClosed();Save("selecting-profile-"+profile,false);
+                var selected=session.SelectProfileAsync(profile).GetAwaiter().GetResult();active=selected.ActiveProfile;
+                var general=baseline.General.ToArray();general[10]=(byte)(profile-1);
+                if(!(baseline with{General=general}).SameData(selected))throw new IOException("Se detectó un cambio fuera del selector de perfil.");
+                checks.Add($"Profile {profile} selected and verified; all profile settings, bindings, macros and RGB unchanged");
+                Save("verified-profile-"+profile,false);
+            }
+            NativeHid.RequireOtherAppsClosed();Save("restoring-original-profile",false);
+            var final=session.SelectProfileAsync(initial.Value).GetAwaiter().GetResult();active=final.ActiveProfile;
+            if(!baseline.SameData(final))throw new IOException("La lectura final no coincide con el respaldo inicial.");
+            checks.Add("Original active profile restored; every stored region matches initial backup");Save("complete",true);return 0;
+        }
+        catch(Exception ex){Save("stopped-no-retry",false,ex.ToString());return 1;}
     }
 
     private static int HardwareCheck()

@@ -15,7 +15,7 @@ foreach (var (op, length) in Protocol.Regions)
     Reject(() => Protocol.ReadRequest(op, -1, 1), "Negative offset accepted");
 }
 foreach (var op in new byte[] { 4, 6, 8, 10, 17, 255 }) Reject(() => Protocol.ReadRequest(op, 0, 1), "Write opcode accepted as read");
-foreach (var p in new[] { -1, 0, 1, 5 }) Reject(() => Protocol.LightingRequest(p, Lighting.Default), "Protected profile write accepted");
+foreach (var p in new[] { -1, 0, 5 }) Reject(() => Protocol.LightingRequest(p, Lighting.Default), "Invalid profile write accepted");
 Reject(() => Protocol.LightingRequest(2, Lighting.Default with { Mode = 20 }), "Removed effect 20 accepted");
 Reject(() => Protocol.LightingRequest(2, Lighting.Default with { Brightness = 5 }), "Brightness out of range");
 Reject(() => Protocol.LightingRequest(2, Lighting.Default with { Speed = 5 }), "Speed out of range");
@@ -30,7 +30,7 @@ var fake = new FakeTransport(); int backups = 0;
 using (var session = new KeyboardSession(fake, _ => { backups++; return Task.CompletedTask; }))
 {
     var before = await session.RefreshAsync(); Check(backups == 1 && fake.Writes == 0, "Refresh wrote to hardware");
-    await RejectAsync(() => session.ApplyLightingAsync(1, Lighting.Default, true), "Profile 1 accepted");
+    await RejectAsync(() => session.ApplyLightingAsync(0, Lighting.Default, true), "Invalid profile accepted");
     await RejectAsync(() => session.ApplyLightingAsync(2, Lighting.Default, false), "Unconfirmed firmware accepted");
     Check(fake.Writes == 0, "Rejected writes reached transport");
     var expected = before.Profile(2) with { R = 120, Colorful = true, Speed = 3 };
@@ -72,21 +72,21 @@ using (var session = new KeyboardSession(unstable, _ => Task.CompletedTask))
 { await RejectAsync(() => session.RefreshAsync(), "Unstable double read accepted"); Check(unstable.Writes == 0, "Refresh writes"); }
 
 var draft = new StudioDraft();
-Reject(() => draft.Assign(1, "W", new("Teclado", "X")), "Local profile 1 edit accepted");
-draft.Assign(2, "W", new("Teclado", "X")); Check(draft.Profile(2)["W"].Value == "X" && draft.Profile(1).Count == 0, "Draft profile scope");
+draft.Assign(1,"W",new("Teclado","Q"));Check(draft.Profile(1)["W"].Value=="Q","Profile 1 draft editable");
+draft.Assign(2, "W", new("Teclado", "X")); Check(draft.Profile(2)["W"].Value == "X" && draft.Profile(1)["W"].Value == "Q", "Draft profile scope");
 draft.Assign(2, "W", null); Check(draft.Profile(2).Count == 0, "Draft revert");
-draft.Assignments[1] = []; Reject(draft.Validate, "Imported profile 1 accepted"); draft.Assignments.Remove(1);
+draft.Assignments[0] = []; Reject(draft.Validate, "Imported invalid profile accepted"); draft.Assignments.Remove(0);
 draft.Macros.Add(new() { Name = "A", Steps = [new("Tecla ↓", "W", -1)] }); Reject(draft.Validate, "Invalid macro delay accepted"); draft.Macros.Clear();
 draft.Macros.Add(new() { Name = "A" }); draft.Macros.Add(new() { Name = "a" }); Reject(draft.Validate, "Duplicate macro names accepted");
 
 string Release(string tag, string? url = null) =>
-    System.Text.Json.JsonSerializer.Serialize(new { draft = false, prerelease = false, tag_name = tag, html_url = url ?? "https://github.com/Esteban-3055/K585Studio/releases/tag/"+tag, assets = new[]{new{name="K585Studio-0.3.0-Setup-win-x64.exe",size=4,digest="sha256:"+new string('a',64),state="uploaded",browser_download_url="https://github.com/Esteban-3055/K585Studio/releases/download/v0.3.0/K585Studio-0.3.0-Setup-win-x64.exe"}} });
+    System.Text.Json.JsonSerializer.Serialize(new { draft = false, prerelease = false, tag_name = tag, html_url = url ?? "https://github.com/Esteban-3055/K585Studio/releases/tag/"+tag, assets = new[]{new{name="K585Studio-0.4.0-Setup-win-x64.exe",size=4,digest="sha256:"+new string('a',64),state="uploaded",browser_download_url="https://github.com/Esteban-3055/K585Studio/releases/download/v0.4.0/K585Studio-0.4.0-Setup-win-x64.exe"}} });
 Check(Updates.Parse(Release("v0.1")).Release == null, "v0.1 compared incorrectly with v0.1.0");
-Check(Updates.Parse(Release("v0.3.0")).Installer != null, "Newer installer missing");
+Check(Updates.Parse(Release("v0.4.0")).Installer != null, "Newer installer missing");
 Reject(() => Updates.Parse(Release("v0.2", "https://evil.example/file.exe")), "Untrusted update URL accepted");
 Reject(() => Updates.Parse(Release("v0.2", "https://github.com/another/repo/releases/tag/v0.2")), "Wrong repo accepted");
 Reject(() => Updates.Parse(Release("bad")), "Invalid version accepted");
-foreach(int p in new[]{2,3,4})
+foreach(int p in new[]{1,2,3,4})
 {
     var packet=Protocol.LightingRequest(p,Lighting.Default);Check(BinaryPrimitives.ReadUInt16LittleEndian(packet.AsSpan(5))==(p-1)*64,"Lighting profile scope");
     foreach(var key in BindingCatalog.Keys.Where(k=>!k.Reserved))
@@ -96,7 +96,7 @@ foreach(int p in new[]{2,3,4})
     }
     for(int rate=0;rate<4;rate++)Check(BinaryPrimitives.ReadUInt16LittleEndian(Protocol.RateRequest(p,rate).AsSpan(5))==(p-1)*64+15,"Per-profile report rate");
 }
-Reject(()=>Protocol.BindingRequest(1,"W",KeyBinding.Keyboard(27)),"P1 binding allowed");Reject(()=>Protocol.RateRequest(1,0),"P1 rate allowed");
+Reject(()=>Protocol.BindingRequest(0,"W",KeyBinding.Keyboard(27)),"Invalid binding profile allowed");Reject(()=>Protocol.RateRequest(5,0),"Invalid rate profile allowed");
 Reject(()=>Protocol.BindingRequest(2,"Fn",KeyBinding.Keyboard(27)),"Reserved Fn edit allowed");Reject(()=>Protocol.RateRequest(2,4),"Invalid rate allowed");
 Check(BindingCatalog.Keys.Count(k=>!k.Reserved)==41,"Physical key count");
 Check(BindingCatalog.ParseKeyboard("Ctrl + Shift + W")==new KeyBinding(0xb0,3,26),"Combination encoding");
@@ -122,8 +122,8 @@ Reject(()=>HardwareMacros.Allocate(beforeModel with{Macros=packed},macroDraft),"
 var full=allocation.Expected.ToArray();BinaryPrimitives.WriteUInt16LittleEndian(full.AsSpan(2),6144);
 Reject(()=>HardwareMacros.Allocate(beforeModel with{Macros=full},macroDraft),"Macro capacity exceeded");
 Reject(()=>HardwareMacros.Read(new byte[6144]),"Unknown macro header accepted");
-var unsafeProject=new StudioDraft();unsafeProject.ReportRates[1]=3;Reject(unsafeProject.Validate,"Imported report rate changes P1");
-unsafeProject.ReportRates.Clear();unsafeProject.Lighting[1]=Lighting.Default;Reject(unsafeProject.Validate,"Imported illumination changes P1");
+var unsafeProject=new StudioDraft();unsafeProject.ReportRates[0]=3;Reject(unsafeProject.Validate,"Invalid imported report rate profile");
+unsafeProject.ReportRates.Clear();unsafeProject.Lighting[5]=Lighting.Default;Reject(unsafeProject.Validate,"Invalid imported illumination profile");
 using(var modelSession=new KeyboardSession(model,_=>Task.CompletedTask))
 {
     var before=await modelSession.RefreshAsync();
@@ -138,10 +138,21 @@ using(var modelSession=new KeyboardSession(model,_=>Task.CompletedTask))
     Check(before.Bindings.AsSpan(0,192).SequenceEqual(modelSession.Current!.Bindings.AsSpan(0,192)),"P1 retained across macro allocation");
 }
 var fixtureFolder=args.Length==2&&args[0]=="--fixtures"?args[1]:null;
-if(fixtureFolder!=null){Directory.CreateDirectory(fixtureFolder);File.WriteAllBytes(Path.Combine(fixtureFolder,"macro-table.bin"),allocation.Expected);File.WriteAllText(Path.Combine(fixtureFolder,"key-catalog.json"),System.Text.Json.JsonSerializer.Serialize(BindingCatalog.Keys));}
+if(fixtureFolder!=null)
+{
+    Directory.CreateDirectory(fixtureFolder);File.WriteAllBytes(Path.Combine(fixtureFolder,"macro-table.bin"),allocation.Expected);File.WriteAllText(Path.Combine(fixtureFolder,"key-catalog.json"),System.Text.Json.JsonSerializer.Serialize(BindingCatalog.Keys));
+    var packets=new List<byte[]>();foreach(int p in Enumerable.Range(1,4))
+    {
+        packets.Add(Protocol.ProfileRequest(p));packets.Add(Protocol.LightingRequest(p,Lighting.Default));
+        foreach(var key in BindingCatalog.Keys.Where(k=>!k.Reserved))packets.Add(Protocol.BindingRequest(p,key.Name,KeyBinding.Keyboard(27)));
+        for(int rate=0;rate<4;rate++)packets.Add(Protocol.RateRequest(p,rate));
+    }
+    File.WriteAllText(Path.Combine(fixtureFolder,"profile-packets.json"),System.Text.Json.JsonSerializer.Serialize(packets));
+}
 await UpdateChecks.Run(Check,RejectAsync);
 LibraryChecks.Run(Check,Reject);
-Console.WriteLine($"PASS: {checks} checks (protocol, protected profile, persistence, bindings, macros, report rates and releases). No physical device used.");
+await ProfileChecks.Run(Check,Reject,RejectAsync);
+Console.WriteLine($"PASS: {checks} checks (protocol, profile selection, isolated writes, persistence, bindings, macros, report rates and releases). No physical device used.");
 
 sealed class FakeTransport : ITransport
 {
@@ -157,11 +168,12 @@ sealed class FakeTransport : ITransport
         ct.ThrowIfCancellationRequested();
         int offset = BinaryPrimitives.ReadUInt16LittleEndian(request.AsSpan(5)), count = request[4];
         var response = request.ToArray();
-        if (request[3] is 6 or 8 or 10)
+        if (request[3] is 4 or 6 or 8 or 10)
         {
-            if(request[3]==6&&(offset<64||offset+count>256))throw new Exception("P1 lighting write");
-            if(request[3]==8&&(offset<192||offset+count>768))throw new Exception("P1 binding write");
-            Writes++;Commands.Add(request[3]);request.AsSpan(8,count).CopyTo(Blocks[request[3] switch{6=>5,8=>7,_=>9}].AsSpan(offset));
+            if(request[3]==4&&(offset!=10||count!=1||request[8]>3))throw new Exception("Invalid active-profile write");
+            if(request[3]==6&&(offset<0||offset+count>256))throw new Exception("Lighting write bounds");
+            if(request[3]==8&&(offset<0||offset+count>768))throw new Exception("Binding write bounds");
+            Writes++;Commands.Add(request[3]);request.AsSpan(8,count).CopyTo(Blocks[request[3] switch{4=>3,6=>5,8=>7,_=>9}].AsSpan(offset));
             if (CorruptOnWrite) Blocks[7][0] ^= 1;
             if (TimeoutOnWrite) throw new TimeoutException("write may have succeeded");
         }

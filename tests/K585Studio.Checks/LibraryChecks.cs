@@ -76,8 +76,8 @@ internal static class LibraryChecks
             project.Save(file); var roundtrip = StudioDraft.Load(file);
             check(roundtrip.Macros.Count == 2 && roundtrip.Profile(2)["W"].Value == copy.Name, "Existing schema 1 projects roundtrip with pending macros");
             byte[] saved = File.ReadAllBytes(file);
-            project.Assignments[1] = [];
-            reject(() => project.Save(file), "Protected-profile project saved");
+            project.Assignments[0] = [];
+            reject(() => project.Save(file), "Invalid-profile project saved");
             check(File.ReadAllBytes(file).AsSpan().SequenceEqual(saved), "Failed save preserves prior project byte-for-byte");
             reject(() => new StudioDraft().Assign(2, "Fn", new("Teclado", "W")), "Reserved Fn draft accepted");
         }

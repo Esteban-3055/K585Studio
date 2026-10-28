@@ -17,6 +17,7 @@ internal sealed class StudioCanvas : Control
     private string? focusId, dragging;
     internal MainForm Host { get; }
     internal IReadOnlyList<StudioHit> Hits => hits;
+    internal RectangleF NoticeBounds => new(306,838,Host.Page==StudioPage.Profile&&Host.Draft.Lighting.ContainsKey(Host.Profile)?380:650,40);
     internal void Render(Graphics graphics) => OnPaint(new PaintEventArgs(graphics,new Rectangle(Point.Empty,Size)));
     internal event Action<string>? Command;
     internal event Action<string, int>? ValueEdited;
@@ -103,7 +104,7 @@ internal sealed class StudioCanvas : Control
         DrawText(g,"Redragon K585RGB",328,8,23,Theme.Muted,650);
         DrawText(g,Host.Snapshot==null?"Sin conectar":$"Perfil activo: {Host.Snapshot.ActiveProfile}",1080,10,20,Host.Snapshot==null?Theme.Muted:Color.FromArgb(0,237,111),330);
         Button(g,"minimize","−",new(1450,8,54,45));Button(g,"maximize","□",new(1524,8,54,45));Button(g,"close","×",new(1598,8,54,45));
-        var nav=new[]{("profile-1","Perfil 1","lock"),("profile-2","Perfil 2","keyboard"),("profile-3","Perfil 3","keyboard"),("profile-4","Perfil 4","keyboard"),("macros","Macros","macro"),("settings","Configuración","settings"),("updates","Actualizaciones","update")};
+        var nav=new[]{("profile-1","Perfil 1","keyboard"),("profile-2","Perfil 2","keyboard"),("profile-3","Perfil 3","keyboard"),("profile-4","Perfil 4","keyboard"),("macros","Macros","macro"),("settings","Configuración","settings"),("updates","Actualizaciones","update")};
         for(int i=0;i<nav.Length;i++)
         {
             var (id,name,icon)=nav[i];bool selected=id==(Host.Page==StudioPage.Profile?$"profile-{Host.Profile}":Host.Page.ToString().ToLowerInvariant());
@@ -114,19 +115,19 @@ internal sealed class StudioCanvas : Control
         }
         Card(g,new(20,658,240,174));DrawText(g,"DISPOSITIVO",38,674,17,Theme.Muted,206,28);
         DrawText(g,Host.Snapshot==null?"K585 sin lectura":"Lectura verificada",38,712,21,width:208,height:30);
-        DrawText(g,"Perfil 1 protegido",38,749,18,Theme.Muted,210,26);Button(g,"read","Conectar / leer",new(38,785,204,36),true);
+        DrawText(g,"4 perfiles editables",38,749,18,Theme.Muted,210,26);Button(g,"read","Conectar / leer",new(38,785,204,36),true);
         switch(Host.Page){case StudioPage.Profile:ProfilePage(g);break;case StudioPage.Macros:MacroPage(g);break;case StudioPage.Settings:SettingsPage(g);break;case StudioPage.Updates:UpdatesPage(g);break;}
         using(var brush=new SolidBrush(Host.Busy?Color.FromArgb(246,212,31):Host.Snapshot==null?Theme.Muted:Color.FromArgb(0,237,111)))g.FillEllipse(brush,24,902,18,18);
         DrawText(g,$"K585 Studio v{Updates.Current}  │  "+(Host.Busy?"Operación en curso…":Host.Snapshot==null?"Sin conexión USB":"Configuración leída y respaldada"),60,890,18,Theme.Muted,900,42);
-        DrawText(g,"Perfil 1 bloqueado",1290,890,18,Theme.Muted,350,42);
-        if(!string.IsNullOrWhiteSpace(Host.Notice))DrawText(g,Host.Notice,306,838,18,Host.Error?Theme.Orange:Theme.Muted,650,40);
+        DrawText(g,$"Editando perfil {Host.Profile}",1290,890,18,Theme.Muted,350,42);
+        if(!string.IsNullOrWhiteSpace(Host.Notice))DrawText(g,Host.Notice,NoticeBounds.X,NoticeBounds.Y,18,Host.Error||Host.PendingMacroPreview is {Ready:false}?Theme.Orange:Theme.Muted,NoticeBounds.Width,NoticeBounds.Height);
         if(focusId!=null && hits.FirstOrDefault(h=>h.Id==focusId) is {} focus && Focused){using var pen=new Pen(Theme.Ink,2){DashStyle=DashStyle.Dot};g.DrawRectangle(pen,focus.Bounds.X+3,focus.Bounds.Y+3,focus.Bounds.Width-6,focus.Bounds.Height-6);}
     }
     private void ProfilePage(Graphics g)
     {
-        bool editable=Host.Profile!=1;
+        bool editable=true;
         DrawText(g,$"Perfil {Host.Profile}",310,84,34,bold:true,width:550,height:48);
-        DrawText(g,editable?"Teclas, iluminación y frecuencia USB":"Vista protegida · sus ajustes permanecen intactos",310,135,21,Theme.Muted,880,32);
+        DrawText(g,"Seleccionarlo lo activa en el teclado · Aplicar guarda los ajustes",310,135,21,Theme.Muted,880,32);
         Card(g,new(304,180,906,425));DrawKeyboard(g,new(326,191,634,402));
         DrawText(g,"K585 RGB",968,210,25,width:218,bold:true,height:36);DrawText(g,"42 teclas",968,257,20,Theme.Muted,215,30);
         DrawText(g,"Naranja",968,323,19,Theme.Orange,215,28);DrawText(g,"Asignación modificada\no cambio pendiente",968,351,18,Theme.Muted,212,72);
@@ -160,7 +161,6 @@ internal sealed class StudioCanvas : Control
         Button(g,"apply-rate","Aplicar frecuencia",new(1252,696,364,44),enabled:Host.CanWrite&&Host.RatePending);
         Button(g,"apply-key",pending==null?"Aplicar tecla":"Aplicar asignación",new(1252,772,364,44),true,Host.CanWrite&&pending!=null&&Host.PendingMacroPreview?.Ready!=false);
         if(Host.Draft.Lighting.ContainsKey(Host.Profile))Button(g,"revert-light","Descartar iluminación",new(704,842,258,39),enabled:editable);
-        if(Host.PendingMacroPreview is {Ready:false} warning)DrawText(g,warning.Message,310,838,17,Theme.Orange,380,43);
         Button(g,"apply-light","Aplicar iluminación",new(978,842,232,39),true,Host.CanWrite&&Host.LightPending&&(light.Mode!=23||Host.Draft.RainFirmwareConfirmed));
     }
     private RectangleF KeyboardBounds(RectangleF box)
@@ -220,8 +220,8 @@ internal sealed class StudioCanvas : Control
     private void SettingsPage(Graphics g)
     {
         DrawText(g,"Configuración",310,83,34,bold:true,width:1200,height:54);
-        Card(g,new(304,170,650,308));DrawText(g,"Dispositivo y protección",328,190,26,bold:true,width:600,height:46);
-        DrawText(g,"Perfil 1",328,254,21,width:200,height:40);DrawText(g,"Protegido de forma permanente",548,254,21,Color.FromArgb(0,237,111),370,40);
+        Card(g,new(304,170,650,308));DrawText(g,"Dispositivo y perfiles",328,190,26,bold:true,width:600,height:46);
+        DrawText(g,"Perfiles 1–4",328,254,21,width:200,height:40);DrawText(g,"Editables con respaldo y verificación",548,254,20,Color.FromArgb(0,237,111),370,40);
         Toggle(g,"rain-support","Firmware de lluvia instalado",Host.Draft.RainFirmwareConfirmed,new(328,317,602,48));
         DrawText(g,"Actívalo solo en el K585 que ya tiene nuestro modo 23.\nLa aplicación no cambia ni instala firmware.",328,386,20,Theme.Muted,600,65);
         Card(g,new(978,170,662,308));DrawText(g,"Actualizaciones",1002,190,26,bold:true,width:612,height:46);
@@ -247,7 +247,7 @@ internal sealed class StudioCanvas : Control
             using var fill=new SolidBrush(Theme.Blue);g.FillRectangle(fill,rect.X,rect.Y,rect.Width*progress/100f,rect.Height);
         }
         Card(g,new(304,525,1336,306));DrawText(g,"Versión operativa de escritorio",332,545,26,bold:true,width:1250,height:48);
-        DrawText(g,"Iluminación, reasignación de teclas, macros y frecuencia USB en perfiles 2–4.\nEl perfil 1 permanece protegido. Cada escritura se respalda y se verifica.\nEl instalador es para tu usuario y conserva los proyectos y respaldos.",332,610,23,Theme.Muted,1250,140);
+        DrawText(g,"Iluminación, reasignación de teclas, macros y frecuencia USB en los cuatro perfiles.\nSeleccionar un perfil lo activa. Cada escritura se respalda y se verifica.\nEl instalador es para tu usuario y conserva los proyectos y respaldos.",332,610,23,Theme.Muted,1250,140);
         Button(g,"github","Ver versiones en GitHub",new(332,767,340,44));
     }
     private PointF Reference(Point point) => new((point.X-dx)/scale,(point.Y-dy)/scale);

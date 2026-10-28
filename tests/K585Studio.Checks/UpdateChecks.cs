@@ -8,8 +8,8 @@ internal static class UpdateChecks
     internal static async Task Run(Action<bool,string> check,Func<Func<Task>,string,Task> reject)
     {
         byte[] payload=[11,22,33,44];string hash=Convert.ToHexString(SHA256.HashData(payload)).ToLowerInvariant();
-        string url="https://github.com/Esteban-3055/K585Studio/releases/download/v0.3.0/K585Studio-0.3.0-Setup-win-x64.exe";
-        string Release(long size,string digest,string download,int count=1) => JsonSerializer.Serialize(new{draft=false,prerelease=false,tag_name="v0.3.0",html_url="https://github.com/Esteban-3055/K585Studio/releases/tag/v0.3.0",assets=Enumerable.Range(0,count).Select(_=>new{name="K585Studio-0.3.0-Setup-win-x64.exe",size,digest,state="uploaded",browser_download_url=download})});
+        string url="https://github.com/Esteban-3055/K585Studio/releases/download/v0.4.0/K585Studio-0.4.0-Setup-win-x64.exe";
+        string Release(long size,string digest,string download,int count=1) => JsonSerializer.Serialize(new{draft=false,prerelease=false,tag_name="v0.4.0",html_url="https://github.com/Esteban-3055/K585Studio/releases/tag/v0.4.0",assets=Enumerable.Range(0,count).Select(_=>new{name="K585Studio-0.4.0-Setup-win-x64.exe",size,digest,state="uploaded",browser_download_url=download})});
         var update=Updates.Parse(Release(payload.Length,"sha256:"+hash,url)).Installer!;
         await reject(()=>Task.Run(()=>Updates.Parse(Release(0,"sha256:"+hash,url))),"Zero-size installer accepted");
         await reject(()=>Task.Run(()=>Updates.Parse(Release(payload.Length,"sha256:"+hash,"https://evil.example/setup.exe"))),"Wrong installer host accepted");

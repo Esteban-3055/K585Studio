@@ -59,7 +59,7 @@ internal sealed class AssignmentDialog : Form
             e.Handled=true;
         };
         capture.KeyPress+=(_,e)=>e.Handled=true;
-        message=Theme.Label("El perfil 1 y la tecla Fn permanecen protegidos.",10);message.MaximumSize=new(440,0);message.ForeColor=Theme.Muted;stack.Controls.Add(message);
+        message=Theme.Label("Fn conserva su función. Aplicar modifica solo la tecla del perfil seleccionado.",10);message.MaximumSize=new(440,0);message.ForeColor=Theme.Muted;stack.Controls.Add(message);
         var actions=Theme.Row();var prepare=Theme.Button("Preparar cambio",(_,_)=>
         {
             try{Result=ValidateSelection();DialogResult=DialogResult.OK;Close();}catch(Exception ex){message.Text=ex.Message;message.ForeColor=Theme.Orange;}

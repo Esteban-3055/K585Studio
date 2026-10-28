@@ -22,8 +22,14 @@ public static class Protocol
         return Packet(6, (profile - 1) * 64, 8, lighting.Bytes());
     }
 
+    public static byte[] ProfileRequest(int profile)
+    {
+        RequireEditableProfile(profile);
+        return Packet(4, 10, 1, [(byte)(profile - 1)]);
+    }
+
     public static void RequireEditableProfile(int profile)
-    { if (profile is < 2 or > 4) throw new InvalidOperationException("El perfil 1 está protegido; solo se pueden modificar los perfiles 2, 3 y 4."); }
+    { if (profile is < 1 or > 4) throw new InvalidOperationException("Selecciona un perfil entre 1 y 4."); }
     public static byte[] BindingRequest(int profile, string key, KeyBinding binding)
     {
         RequireEditableProfile(profile); binding.Validate(); var physical = BindingCatalog.Key(key);
@@ -58,7 +64,7 @@ public static class Protocol
             !request.AsSpan(1, 6).SequenceEqual(response.AsSpan(1, 6)))
             throw new IOException("La respuesta USB no corresponde a la petición.");
         // This firmware echoes the REQUEST checksum, not a checksum of the returned payload.
-        if (response[7] is 0xfe or 0xff || (request[3] is 6 or 8 or 10 && response[7] != 0))
+        if (response[7] is 0xfe or 0xff || (request[3] is 4 or 6 or 8 or 10 && response[7] != 0))
             throw new IOException($"El teclado rechazó la petición ({response[7]:X2}).");
         return response.AsSpan(8, request[4]).ToArray();
     }
@@ -152,10 +158,9 @@ public sealed class KeyboardSession(ITransport transport, Func<Snapshot, Task> b
         finally { gate.Release(); }
     }
 
-    public async Task<Snapshot> ApplyLightingAsync(int profile, Lighting lighting, bool rainFirmwareConfirmed, CancellationToken ct = default)
+    public async Task<Snapshot> SelectProfileAsync(int profile, CancellationToken ct = default)
     {
-        var request = Protocol.LightingRequest(profile, lighting);
-        if (lighting.Mode == 23 && !rainFirmwareConfirmed) throw new InvalidOperationException("Confirma que este teclado tiene instalado el firmware de lluvia.");
+        var request = Protocol.ProfileRequest(profile);
         await gate.WaitAsync(ct);
         try
         {
@@ -163,21 +168,31 @@ public sealed class KeyboardSession(ITransport transport, Func<Snapshot, Task> b
             var previous = Current ?? throw new InvalidOperationException("Primero lee el teclado.");
             var fresh = await StableRead(ct);
             if (!previous.SameData(fresh)) throw new IOException("La configuración cambió fuera de Studio. Vuelve a leerla antes de aplicar.");
-            if (fresh.ActiveProfile != profile) throw new InvalidOperationException($"Activa el perfil {profile} con el botón físico M{profile} y vuelve a leer.");
             await backup(fresh);
-            if (fresh.Profile(profile) == lighting) return Current = fresh;
+            if (fresh.ActiveProfile == profile) return Current = fresh;
             // From this point, never retry automatically: even a timeout can follow a successful persistent write.
             WriteFaulted = true;
             Protocol.Response(request, await transport.ExchangeAsync(request, ct));
             var after = await StableRead(ct);
             await backup(after);
-            var expectedLights = fresh.Illumination.ToArray(); lighting.Bytes().CopyTo(expectedLights, (profile - 1) * 64);
-            if (!(fresh with { Illumination = expectedLights }).SameData(after))
-                throw new IOException("La verificación detectó cambios inesperados. No se harán más escrituras ni restauraciones automáticas.");
+            var general = fresh.General.ToArray(); general[10] = (byte)(profile - 1);
+            if (!(fresh with { General = general }).SameData(after))
+                throw new IOException("El cambio de perfil no coincide con lo esperado. Vuelve a conectar y revisar; no se reintentará automáticamente.");
             WriteFaulted = false;
             return Current = after;
         }
         finally { gate.Release(); }
+    }
+
+    public Task<Snapshot> ApplyLightingAsync(int profile, Lighting lighting, bool rainFirmwareConfirmed, CancellationToken ct = default)
+    {
+        var request = Protocol.LightingRequest(profile, lighting);
+        if (lighting.Mode == 23 && !rainFirmwareConfirmed) throw new InvalidOperationException("Confirma que este teclado tiene instalado el firmware de lluvia.");
+        return ExecutePlan(profile, current =>
+        {
+            var lights = current.Illumination.ToArray(); lighting.Bytes().CopyTo(lights, (profile - 1) * 64);
+            return (current with { Illumination = lights }, new[] { request });
+        }, ct);
     }
 
     public Task<Snapshot> ApplyRateAsync(int profile, int rate, CancellationToken ct = default) => ExecutePlan(profile, current =>
@@ -224,10 +239,12 @@ public sealed class KeyboardSession(ITransport transport, Func<Snapshot, Task> b
             var previous = Current ?? throw new InvalidOperationException("Primero lee el teclado.");
             var fresh = await StableRead(ct);
             if (!previous.SameData(fresh)) throw new IOException("El dispositivo cambió fuera de Studio. Vuelve a leer antes de aplicar.");
-            if (fresh.ActiveProfile != profile) throw new InvalidOperationException($"Activa M{profile} en el teclado y vuelve a leer antes de aplicar.");
+            if (fresh.ActiveProfile != profile) throw new InvalidOperationException($"Selecciona de nuevo el perfil {profile} en Studio para activarlo antes de aplicar.");
             var (expected, packets) = plan(fresh);
-            if (!fresh.General.AsSpan().SequenceEqual(expected.General) || !fresh.Illumination.AsSpan(0,64).SequenceEqual(expected.Illumination.AsSpan(0,64)) ||
-                !fresh.Bindings.AsSpan(0,192).SequenceEqual(expected.Bindings.AsSpan(0,192)) || !fresh.Rgb.AsSpan().SequenceEqual(expected.Rgb))
+            if (!fresh.General.AsSpan().SequenceEqual(expected.General) || !fresh.Rgb.AsSpan().SequenceEqual(expected.Rgb) ||
+                Enumerable.Range(1,4).Where(p => p != profile).Any(p =>
+                    !fresh.Illumination.AsSpan((p-1)*64,64).SequenceEqual(expected.Illumination.AsSpan((p-1)*64,64)) ||
+                    !fresh.Bindings.AsSpan((p-1)*192,192).SequenceEqual(expected.Bindings.AsSpan((p-1)*192,192))))
                 throw new InvalidOperationException("El plan intentaba alterar una región protegida.");
             await backup(fresh);
             if (fresh.SameData(expected)) return Current = fresh;
