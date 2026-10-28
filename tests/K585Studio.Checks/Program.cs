@@ -140,6 +140,7 @@ using(var modelSession=new KeyboardSession(model,_=>Task.CompletedTask))
 var fixtureFolder=args.Length==2&&args[0]=="--fixtures"?args[1]:null;
 if(fixtureFolder!=null){Directory.CreateDirectory(fixtureFolder);File.WriteAllBytes(Path.Combine(fixtureFolder,"macro-table.bin"),allocation.Expected);File.WriteAllText(Path.Combine(fixtureFolder,"key-catalog.json"),System.Text.Json.JsonSerializer.Serialize(BindingCatalog.Keys));}
 await UpdateChecks.Run(Check,RejectAsync);
+LibraryChecks.Run(Check,Reject);
 Console.WriteLine($"PASS: {checks} checks (protocol, protected profile, persistence, bindings, macros, report rates and releases). No physical device used.");
 
 sealed class FakeTransport : ITransport

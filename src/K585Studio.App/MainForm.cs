@@ -17,6 +17,13 @@ internal sealed class MainForm : Form
     internal string Status { get; private set; } = "Los cambios se envían únicamente al pulsar Aplicar.";
     internal Guid? SelectedMacro { get; private set; }
     internal MacroDraft? Macro => Draft.Macros.FirstOrDefault(m => m.Id == SelectedMacro);
+    internal IReadOnlyList<DeviceMacro> DeviceMacros { get; private set; } = [];
+    internal string MacroMemory => MacroLibrary.DescribeMemory(Snapshot);
+    internal MacroReadiness? MacroPreview => Macro is {} macro ? MacroLibrary.Preview(macro, Snapshot) : null;
+    internal MacroReadiness? PendingMacroPreview => PendingAssignment is { Category: "Macro" } assignment
+        ? Draft.Macros.FirstOrDefault(m => m.Name == assignment.Value) is {} macro
+            ? MacroLibrary.Preview(macro, Snapshot) : new(false, false, 0, "La macro ya no está en la biblioteca.")
+        : null;
     internal InstallerUpdate? AvailableUpdate { get; private set; }
     internal string? DownloadedInstaller { get; private set; }
     internal string UpdateStatus { get; private set; } = "Comprueba si hay una nueva versión disponible.";
@@ -90,6 +97,8 @@ internal sealed class MainForm : Form
             case "apply-key":await ApplyKey();break;
             case "edit-key":EditAssignment();break;
             case "revert-key":Draft.Assign(Profile,SelectedKey,null);SaveProject();break;
+            case "revert-light":if(Profile!=1){Draft.Lighting.Remove(Profile);SaveProject();}break;
+            case "revert-rate":if(Profile!=1){Draft.ReportRates.Remove(Profile);SaveProject();}break;
             case "factory-key":Draft.Assign(Profile,SelectedKey,new("Original",SelectedKey));SaveProject();break;
             case "effect":ShowEffects();break;
             case "colorful":Draft.Lighting[Profile]=EditableLighting with{Colorful=!CurrentLighting.Colorful};SaveProject();break;
@@ -100,6 +109,7 @@ internal sealed class MainForm : Form
             case "macro-edit":EditMacro(false);break;
             case "macro-delete":DeleteMacro();break;
             case "macro-list":ShowAllMacros();break;
+            case "macro-device":ShowDeviceMacros();break;
             case "import":ImportProject();break;
             case "export":ExportProject();break;
             case "backups":Directory.CreateDirectory(Path.Combine(Storage.Root,"Backups"));Open(Path.Combine(Storage.Root,"Backups"));break;
@@ -124,6 +134,28 @@ internal sealed class MainForm : Form
     private void ShowAllMacros()
     {
         var menu=Menu();foreach(var macro in Draft.Macros){var item=new ToolStripMenuItem(macro.Name);item.Click+=(_,_)=>{SelectedMacro=macro.Id;canvas.Invalidate();};menu.Items.Add(item);}menu.Closed+=(_,_)=>menu.Dispose();menu.Show(Cursor.Position);
+    }
+    private void ShowDeviceMacros()
+    {
+        if(Snapshot==null||DeviceMacros.Count==0)return;
+        var menu=Menu();
+        foreach(var record in DeviceMacros)
+        {
+            string name=record.Draft.Name.Length>48?record.Draft.Name[..48]+"…":record.Draft.Name;
+            var item=new ToolStripMenuItem($"#{record.Index+1} · {name} · {record.Length} bytes");
+            item.Click+=(_,_)=>
+            {
+                try
+                {
+                    var copy=MacroLibrary.CopyTo(Draft,record);SelectedMacro=copy.Id;SaveProject();
+                    SetStatus("Copia local seleccionada. Editarla conserva la macro almacenada en el teclado.");
+                }
+                catch(Exception ex){SetStatus(ex.Message,true);}
+                canvas.Invalidate();
+            };
+            menu.Items.Add(item);
+        }
+        menu.Closed+=(_,_)=>menu.Dispose();menu.Show(Cursor.Position);
     }
     private void ChooseColor()
     {
@@ -161,25 +193,20 @@ internal sealed class MainForm : Form
     {
         await Run(async()=>
         {
-            SetStatus("Leyendo dos veces la configuración y guardando un respaldo…");session?.Dispose();session=null;Snapshot=null;
+            SetStatus("Leyendo dos veces la configuración y guardando un respaldo…");session?.Dispose();session=null;Snapshot=null;DeviceMacros=[];
             session=await Task.Run(()=>new KeyboardSession(NativeHid.Open(),Storage.Backup));
             Snapshot=await Task.Run(()=>session.RefreshAsync(lifetime.Token));
-            MergeDeviceMacros();SetStatus("Lectura verificada. Los ajustes pendientes se conservan.");
+            SetStatus("Lectura verificada. Los ajustes pendientes se conservan.");ReadDeviceMacros();
         });
     }
-    private void MergeDeviceMacros()
+    private void ReadDeviceMacros()
     {
         if(Snapshot==null)return;
         try
         {
-            foreach(var record in HardwareMacros.Read(Snapshot.Macros))
-            {
-                if(Draft.Macros.Any(m=>m.Name==record.Draft.Name))continue;
-                Draft.Macros.Add(record.Draft);
-            }
-            SelectedMacro??=Draft.Macros.FirstOrDefault()?.Id;SaveProject();
+            DeviceMacros=HardwareMacros.Read(Snapshot.Macros);
         }
-        catch(InvalidDataException ex){SetStatus("Lectura válida; tabla de macros no editable: "+ex.Message,true);}
+        catch(InvalidDataException ex){DeviceMacros=[];SetStatus("Lectura válida; tabla de macros no editable: "+ex.Message,true);}
     }
     private async Task ApplyLighting()
     {
@@ -194,6 +221,7 @@ internal sealed class MainForm : Form
     private async Task ApplyKey()
     {
         if(!CanWrite||session==null||PendingAssignment is not {} pending)return;int profile=Profile;string key=SelectedKey;
+        if(PendingMacroPreview is {Ready:false} preview){SetStatus(preview.Message,true);return;}
         await Run(async()=>
         {
             NativeHid.RequireOtherAppsClosed();
@@ -212,7 +240,7 @@ internal sealed class MainForm : Form
                 var binding=pending.Category=="Original"?KeyBinding.Parse(BindingCatalog.Key(key).Factory):BindingCatalog.Encode(pending);
                 Snapshot=await Task.Run(()=>session.ApplyBindingAsync(profile,key,binding,lifetime.Token));
             }
-            Draft.Assign(profile,key,null);SaveProject();SetStatus("Asignación guardada y verificada. El perfil 1 permanece intacto.");
+            Draft.Assign(profile,key,null);SaveProject();SetStatus("Asignación guardada y verificada. El perfil 1 permanece intacto.");ReadDeviceMacros();
         });
     }
     private async Task Run(Func<Task> action)
@@ -221,7 +249,7 @@ internal sealed class MainForm : Form
         try{await action();}
         catch(OperationCanceledException){SetStatus("Operación interrumpida. Vuelve a leer antes de aplicar.",true);}
         catch(Exception ex){if(ex is IOException&&ex is not InvalidDataException)Snapshot=null;SetStatus(ex.Message,true);if(Page==StudioPage.Updates){UpdateStatus=ex.Message;UpdateProgress=null;}if(!isolated){Directory.CreateDirectory(Storage.Root);File.WriteAllText(Path.Combine(Storage.Root,"last-error.txt"),ex.ToString());}}
-        finally{if(session?.WriteFaulted==true)Snapshot=null;Busy=false;if(!IsDisposed)canvas.Invalidate();if(closeAfterOperation)Close();}
+        finally{if(session?.WriteFaulted==true)Snapshot=null;if(Snapshot==null)DeviceMacros=[];Busy=false;if(!IsDisposed)canvas.Invalidate();if(closeAfterOperation)Close();}
     }
     private async Task CheckUpdates(bool background)
     {
@@ -319,12 +347,27 @@ internal sealed class MainForm : Form
             Assert(!canvas.Hits.Single(h=>h.Id=="apply-key").Enabled,"No hardware apply without read");
             EditSlider("speed",0);Assert(CurrentLighting.Speed==4,"Left speed is slowest, no device write");
             EditSlider("brightness",2);Assert(CurrentLighting.Brightness==2,"Brightness remains a local draft");
+            HandleCommand("revert-light").GetAwaiter().GetResult();Assert(!Draft.Lighting.ContainsKey(2),"Discard lighting removes only local draft");
+            Draft.ReportRates[2]=3;HandleCommand("revert-rate").GetAwaiter().GetResult();Assert(!Draft.ReportRates.ContainsKey(2),"Discard rate removes only local draft");
             Draft.Assign(2,"W",new("Teclado","Ctrl + X"));Assert(IsModified("W")&&!IsModified("E"),"Orange overlay scoped to modified key");Render("profile2-pending");
             Profile=1;Render("profile1-locked");Assert(canvas.Hits.Where(h=>h.Id is "edit-key" or "factory-key" or "apply-key" or "brightness" or "speed" or "apply-rate" or "effect").All(h=>!h.Enabled),"Profile 1 controls locked");
             Assert(!IsModified("W"),"Profile 2 drafts never appear in profile 1");
             Profile=2;Page=StudioPage.Macros;Render("macros-empty");
+            Assert(!canvas.Hits.Single(h=>h.Id=="macro-device").Enabled,"Device copy unavailable without a verified read");
             var macro=new MacroDraft{Name="Prueba de edición",Steps=[new("Tecla ↓","W",0),new("Tecla ↑","W",150)]};Draft.Macros.Add(macro);SelectedMacro=macro.Id;Render("macros");
             Assert(Macro==macro,"Macro selection reflects library");
+            Assert(MacroPreview is {Ready:false,Bytes:>0},"Offline macro preview does not promise device capacity");
+            var memory=new byte[HardwareMacros.Capacity];memory[0]=0xaa;memory[1]=0x55;memory[2]=16;
+            var snapshot=new Snapshot(DateTimeOffset.UtcNow,new byte[128],new byte[256],new byte[768],memory,new byte[768]);
+            foreach(int p in new[]{1,2,3,4})foreach(var key in BindingCatalog.Keys)key.Factory.CopyTo(snapshot.Bindings,(p-1)*192+key.Slot*3);
+            var stored=HardwareMacros.Allocate(snapshot,new(){Name="Teclado",Steps=[new("Tecla ↓","E",0),new("Tecla ↑","E",100)]});
+            Snapshot=snapshot with{Macros=stored.Expected};ReadDeviceMacros();
+            Assert(DeviceMacros.Count==1&&Draft.Macros.Count==1&&Macro==macro,"Reading inventory never imports or overwrites local macros");
+            Render("macros-connected");Assert(canvas.Hits.Single(h=>h.Id=="macro-device").Enabled,"Device inventory available after read");
+            Assert(MacroPreview is {Ready:true,ReusesRecord:false},"UI reports allocatable local macro");
+            var copy=MacroLibrary.CopyTo(Draft,DeviceMacros[0]);SelectedMacro=copy.Id;Render("macros-reused");
+            Assert(MacroPreview is {Ready:true,ReusesRecord:true},"UI recognizes reusable device macro");
+            Snapshot=null;DeviceMacros=[];
             Page=StudioPage.Settings;Render("settings");Page=StudioPage.Updates;Render("updates");
             Page=StudioPage.Profile;Render("profile-1040x660",1040,660);Render("profile-1920x1080",1920,1080);
             using(var dialog=new AssignmentDialog("W",new("Teclado","Ctrl + X"),Draft.Macros))Assert(dialog.ValidateSelection()==new Assignment("Teclado","Ctrl + X"),"Assignment editor preserves combo");

@@ -1,8 +1,8 @@
-# Validación de v0.2
+# Validación de v0.2.1
 
 La prueba automática y la observación física son evidencias diferentes. Las capturas de la interfaz se generan en segundo plano con el mismo dibujado del producto, sin mostrar ventanas ni controlar otras aplicaciones.
 
-Resultado local de esta versión: compilación Release sin avisos, 399 comprobaciones de modelo/protocolo/actualizador y 30 de interfaz aprobadas. La prueba USB de escritura y restauración también terminó correctamente. El instalador se prueba por separado en el runner de GitHub antes de publicar.
+Resultado local de v0.2.1: compilación Release sin avisos, 438 comprobaciones de modelo/protocolo/actualizador/proyectos y 42 de interfaz aprobadas. Esta revisión no ejecuta pruebas físicas ni escribe en el teclado; la prueba USB descrita más abajo corresponde a v0.2.0. El instalador se prueba por separado en el runner de GitHub antes de publicar.
 
 ## Compilar y probar
 
@@ -15,6 +15,8 @@ dotnet run --project tests/K585Studio.Checks -c Release --no-build
 Las pruebas del modelo cubren límites y cabeceras USB, perfil 1 y Fn protegidos, cambios externos, respaldos fallidos, timeout sin reintento, comparación integral, reasignaciones, frecuencia por perfil, macros nuevas/reutilizadas, límites y conservación de registros anteriores. El actualizador se prueba con respuestas HTTP simuladas: URL, versión, tamaño, digest, descarga íntegra o incompleta, caché alterada, publicación modificada y errores de red.
 
 La interfaz se comprueba a 1040×660, 1672×941 y 1920×1080: 42 áreas de teclas, bloqueo del perfil 1, borradores sin escritura, indicadores de cambios, páginas y editores. La prueba no abre HID ni carga/guarda proyectos personales.
+
+La v0.2.1 añade casos de biblioteca local separada, copia sin colisiones, edición que conserva los registros del dispositivo, reutilización con tabla llena, falta de espacio, directorio OEM ocupado y referencias sin definir en perfil 1. Comprueba además JSON incompleto, asignaciones inválidas, límites de archivo, conservación del archivo anterior al fallar el guardado y descarte de borradores sin HID. Las capturas con macros conectadas utilizan una instantánea ficticia aislada.
 
 ## Evidencia nativa, fuera del repositorio
 

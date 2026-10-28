@@ -51,6 +51,14 @@ jobs:
       - name: Install, upgrade and uninstall test
         shell: pwsh
         run: ./scripts/test-installed.ps1 -Installer 'artifacts/K585Studio-${{ steps.version.outputs.value }}-Setup-win-x64.exe' -TestDirectory "$env:RUNNER_TEMP/K585Studio-installed"
+      - name: Upgrade published v0.2.0 and preserve private data
+        shell: pwsh
+        run: |
+          $previous = Join-Path $env:RUNNER_TEMP 'K585Studio-0.2.0-Setup-win-x64.exe'
+          Invoke-WebRequest 'https://github.com/Esteban-3055/K585Studio/releases/download/v0.2.0/K585Studio-0.2.0-Setup-win-x64.exe' -OutFile $previous
+          $expected = '03fb6afccfb8fa5d5b87e102cd20cac6adfb17df322fd8209c9337fa016c231c'
+          if ((Get-FileHash -LiteralPath $previous -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'Published previous installer changed' }
+          ./scripts/test-installed.ps1 -Installer 'artifacts/K585Studio-${{ steps.version.outputs.value }}-Setup-win-x64.exe' -PreviousInstaller $previous -TestDirectory "$env:RUNNER_TEMP/K585Studio-upgraded-from-v020"
       - name: Package portable
         shell: pwsh
         run: |

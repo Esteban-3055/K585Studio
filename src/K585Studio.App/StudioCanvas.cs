@@ -152,12 +152,15 @@ internal sealed class StudioCanvas : Control
         if(pending!=null)Button(g,"revert-key","Descartar",new(1505,428,111,34),enabled:editable);
         Button(g,"edit-key","Editar asignación",new(1252,483,364,44),true,editable&&!BindingCatalog.Key(Host.SelectedKey).Reserved);
         Button(g,"factory-key","Asignación original de esta tecla",new(1252,539,364,44),enabled:editable&&!BindingCatalog.Key(Host.SelectedKey).Reserved);
-        DrawText(g,"Frecuencia USB de este perfil",1252,603,19,Theme.Muted,364,32);
+        DrawText(g,"Frecuencia USB de este perfil",1252,603,19,Theme.Muted,265,32);
+        if(Host.Draft.ReportRates.ContainsKey(Host.Profile))Button(g,"revert-rate","Descartar",new(1510,604,106,32),enabled:editable);
         int? rate=Host.CurrentRate;
         string[] rates=["125 Hz","250 Hz","500 Hz","1 kHz"];
         for(int i=0;i<4;i++)Button(g,"rate-"+i,rates[i],new(1252+i*92,644,84,38),rate==i,editable);
         Button(g,"apply-rate","Aplicar frecuencia",new(1252,696,364,44),enabled:Host.CanWrite&&Host.RatePending);
-        Button(g,"apply-key",pending==null?"Aplicar tecla":"Aplicar asignación",new(1252,772,364,44),true,Host.CanWrite&&pending!=null);
+        Button(g,"apply-key",pending==null?"Aplicar tecla":"Aplicar asignación",new(1252,772,364,44),true,Host.CanWrite&&pending!=null&&Host.PendingMacroPreview?.Ready!=false);
+        if(Host.Draft.Lighting.ContainsKey(Host.Profile))Button(g,"revert-light","Descartar iluminación",new(704,842,258,39),enabled:editable);
+        if(Host.PendingMacroPreview is {Ready:false} warning)DrawText(g,warning.Message,310,838,17,Theme.Orange,380,43);
         Button(g,"apply-light","Aplicar iluminación",new(978,842,232,39),true,Host.CanWrite&&Host.LightPending&&(light.Mode!=23||Host.Draft.RainFirmwareConfirmed));
     }
     private RectangleF KeyboardBounds(RectangleF box)
@@ -185,12 +188,14 @@ internal sealed class StudioCanvas : Control
     }
     private void MacroPage(Graphics g)
     {
-        DrawText(g,"Macros",310,83,34,bold:true,width:800,height:54);DrawText(g,"Biblioteca local y macros almacenadas en el teclado",310,138,21,Theme.Muted,1250,35);
+        DrawText(g,"Macros",310,83,34,bold:true,width:800,height:54);DrawText(g,"Biblioteca local · edita copias sin cambiar las macros existentes del teclado",310,130,21,Theme.Muted,1250,32);
+        DrawText(g,Host.MacroMemory,310,164,18,Theme.Muted,1310,27);
         Card(g,new(304,195,348,636));Button(g,"macro-new","Nueva macro",new(326,215,303,44),true);
-        var macros=Host.Draft.Macros;int visible=Math.Min(7,macros.Count);
+        var macros=Host.Draft.Macros;int visible=Math.Min(6,macros.Count);
         for(int i=0;i<visible;i++)Button(g,"macro-select:"+macros[i].Id,macros[i].Name,new(326,280+i*58,303,46),Host.SelectedMacro==macros[i].Id);
         if(macros.Count==0)DrawText(g,"Crea una macro para\nasignarla a una tecla.",330,300,21,Theme.Muted,295,110);
-        if(macros.Count>7)Button(g,"macro-list","Ver todas las macros",new(326,710,303,44));
+        if(macros.Count>6)Button(g,"macro-list","Ver todas las macros",new(326,639,303,44));
+        Button(g,"macro-device",$"Copiar del teclado ({Host.DeviceMacros.Count})",new(326,710,303,44),enabled:Host.Snapshot!=null&&Host.DeviceMacros.Count>0);
         Button(g,"macro-delete","Eliminar de la biblioteca",new(326,768,303,44),enabled:Host.Macro!=null);
         Card(g,new(674,195,966,636));var macro=Host.Macro;
         DrawText(g,macro?.Name??"Selecciona una macro",698,212,27,width:650,height:44,bold:true);
@@ -207,9 +212,10 @@ internal sealed class StudioCanvas : Control
                 DrawText(g,step.Action,710,y,20,width:290,height:35);DrawText(g,step.Value,1010,y,20,width:300,height:35);DrawText(g,step.DelayMs+" ms",1394,y,20,Theme.Muted,220,35);
             }
             if(macro.Steps.Count>9)DrawText(g,$"Y {macro.Steps.Count-9} pasos más en el editor…",710,708,19,Theme.Muted,900,30);
-            DrawText(g,"Para guardarla en el K585, asígnala a una tecla y pulsa Aplicar asignación.",698,765,19,Theme.Muted,910,45);
+            var preview=Host.MacroPreview!;
+            DrawText(g,preview.Message,698,748,20,preview.Ready?Theme.Ink:Theme.Orange,910,68);
         }
-        else DrawText(g,"Las macros del dispositivo se incorporan al leer el teclado.\nLas nuevas se guardan sin mover ni sobrescribir las existentes.",698,330,23,Theme.Muted,900,130);
+        else DrawText(g,"Crea una macro o usa «Copiar del teclado».\nLas copias se editan en la biblioteca local. Leer el teclado\nconserva tus cambios. Asígnalas a una tecla para aplicarlas.",698,330,23,Theme.Muted,900,150);
     }
     private void SettingsPage(Graphics g)
     {
