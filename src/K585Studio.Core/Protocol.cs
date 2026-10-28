@@ -17,9 +17,29 @@ public static class Protocol
 
     public static byte[] LightingRequest(int profile, Lighting lighting)
     {
-        if (profile != 2) throw new InvalidOperationException("La v0.1 solo escribe iluminación del perfil 2.");
+        RequireEditableProfile(profile);
         lighting.Validate();
-        return Packet(6, 64, 8, lighting.Bytes());
+        return Packet(6, (profile - 1) * 64, 8, lighting.Bytes());
+    }
+
+    public static void RequireEditableProfile(int profile)
+    { if (profile is < 2 or > 4) throw new InvalidOperationException("El perfil 1 está protegido; solo se pueden modificar los perfiles 2, 3 y 4."); }
+    public static byte[] BindingRequest(int profile, string key, KeyBinding binding)
+    {
+        RequireEditableProfile(profile); binding.Validate(); var physical = BindingCatalog.Key(key);
+        if (physical.Reserved) throw new InvalidOperationException("Fn es una función reservada y se conserva intacta.");
+        return Packet(8, (profile - 1) * 192 + physical.Slot * 3, 3, binding.Bytes());
+    }
+    public static byte[] RateRequest(int profile, int rate)
+    {
+        RequireEditableProfile(profile);
+        if (rate is < 0 or > 3) throw new ArgumentOutOfRangeException(nameof(rate));
+        return Packet(6, (profile - 1) * 64 + 15, 1, [(byte)rate]);
+    }
+    internal static byte[] MacroRequest(int offset, byte[] data)
+    {
+        if (data.Length is < 1 or > 56 || offset < 0 || offset > 6144 - data.Length) throw new ArgumentOutOfRangeException(nameof(offset));
+        return Packet(10, offset, data.Length, data);
     }
 
     private static byte[] Packet(byte opcode, int offset, int length, byte[] data)
@@ -38,7 +58,7 @@ public static class Protocol
             !request.AsSpan(1, 6).SequenceEqual(response.AsSpan(1, 6)))
             throw new IOException("La respuesta USB no corresponde a la petición.");
         // This firmware echoes the REQUEST checksum, not a checksum of the returned payload.
-        if (response[7] is 0xfe or 0xff || (request[3] == 6 && response[7] != 0))
+        if (response[7] is 0xfe or 0xff || (request[3] is 6 or 8 or 10 && response[7] != 0))
             throw new IOException($"El teclado rechazó la petición ({response[7]:X2}).");
         return response.AsSpan(8, request[4]).ToArray();
     }
@@ -143,18 +163,79 @@ public sealed class KeyboardSession(ITransport transport, Func<Snapshot, Task> b
             var previous = Current ?? throw new InvalidOperationException("Primero lee el teclado.");
             var fresh = await StableRead(ct);
             if (!previous.SameData(fresh)) throw new IOException("La configuración cambió fuera de Studio. Vuelve a leerla antes de aplicar.");
-            if (fresh.ActiveProfile != 2) throw new InvalidOperationException("Activa el perfil 2 con el botón físico M2 y vuelve a leer. Studio no cambia el perfil activo.");
+            if (fresh.ActiveProfile != profile) throw new InvalidOperationException($"Activa el perfil {profile} con el botón físico M{profile} y vuelve a leer.");
             await backup(fresh);
-            if (fresh.Profile(2) == lighting) return Current = fresh;
+            if (fresh.Profile(profile) == lighting) return Current = fresh;
             // From this point, never retry automatically: even a timeout can follow a successful persistent write.
             WriteFaulted = true;
             Protocol.Response(request, await transport.ExchangeAsync(request, ct));
             var after = await StableRead(ct);
             await backup(after);
-            if (!fresh.OnlyProfile2LightingChanged(after, lighting))
+            var expectedLights = fresh.Illumination.ToArray(); lighting.Bytes().CopyTo(expectedLights, (profile - 1) * 64);
+            if (!(fresh with { Illumination = expectedLights }).SameData(after))
                 throw new IOException("La verificación detectó cambios inesperados. No se harán más escrituras ni restauraciones automáticas.");
             WriteFaulted = false;
             return Current = after;
+        }
+        finally { gate.Release(); }
+    }
+
+    public Task<Snapshot> ApplyRateAsync(int profile, int rate, CancellationToken ct = default) => ExecutePlan(profile, current =>
+    {
+        var lights = current.Illumination.ToArray(); lights[(profile - 1) * 64 + 15] = (byte)rate;
+        return (current with { Illumination = lights }, new[] { Protocol.RateRequest(profile, rate) });
+    }, ct);
+
+    public Task<Snapshot> ApplyBindingAsync(int profile, string key, KeyBinding binding, CancellationToken ct = default) => ExecutePlan(profile, current =>
+    {
+        if (binding.Kind is 0x70 or 0x71 && !HardwareMacros.Read(current.Macros).Any(m => m.Index == binding.A)) throw new InvalidDataException("La macro todavía no existe en el dispositivo.");
+        var bindings = current.Bindings.ToArray(); binding.Bytes().CopyTo(bindings, (profile - 1) * 192 + BindingCatalog.Key(key).Slot * 3);
+        return (current with { Bindings = bindings }, new[] { Protocol.BindingRequest(profile, key, binding) });
+    }, ct);
+
+    public Task<Snapshot> ApplyMacroAsync(int profile, string key, MacroDraft macro, CancellationToken ct = default) => ExecutePlan(profile, current =>
+    {
+        // Append records; never relocate, rewrite or remove an existing macro used by any profile.
+        var encoded = HardwareMacros.Encode(macro);
+        var existing = HardwareMacros.Read(current.Macros).FirstOrDefault(m => current.Macros.AsSpan(m.Offset, m.Length).SequenceEqual(encoded));
+        var packets = new List<byte[]>(); byte[] macros = current.Macros; int id;
+        if (existing != null) id = existing.Index;
+        else
+        {
+            var allocation = HardwareMacros.Allocate(current, macro); id = allocation.Index; macros = allocation.Expected;
+            for(int i=0;i<allocation.Data.Length;i+=56) packets.Add(Protocol.MacroRequest(allocation.DataOffset+i,allocation.Data.AsSpan(i,Math.Min(56,allocation.Data.Length-i)).ToArray()));
+            packets.Add(Protocol.MacroRequest(allocation.DirectoryOffset, allocation.Expected.AsSpan(allocation.DirectoryOffset, 2).ToArray()));
+            // Publish the complete record only after its data and directory pointer are present.
+            packets.Add(Protocol.MacroRequest(2, allocation.Header));
+        }
+        var binding = KeyBinding.Macro((byte)id); var bindings = current.Bindings.ToArray();
+        packets.Add(Protocol.BindingRequest(profile, key, binding));
+        binding.Bytes().CopyTo(bindings,(profile-1)*192+BindingCatalog.Key(key).Slot*3);
+        return (current with { Bindings = bindings, Macros = macros }, packets.ToArray());
+    }, ct);
+
+    private async Task<Snapshot> ExecutePlan(int profile, Func<Snapshot, (Snapshot Expected, byte[][] Packets)> plan, CancellationToken ct)
+    {
+        Protocol.RequireEditableProfile(profile);
+        await gate.WaitAsync(ct);
+        try
+        {
+            if (WriteFaulted) throw new InvalidOperationException("Escrituras bloqueadas tras un error. Vuelve a conectar y revisa el respaldo.");
+            var previous = Current ?? throw new InvalidOperationException("Primero lee el teclado.");
+            var fresh = await StableRead(ct);
+            if (!previous.SameData(fresh)) throw new IOException("El dispositivo cambió fuera de Studio. Vuelve a leer antes de aplicar.");
+            if (fresh.ActiveProfile != profile) throw new InvalidOperationException($"Activa M{profile} en el teclado y vuelve a leer antes de aplicar.");
+            var (expected, packets) = plan(fresh);
+            if (!fresh.General.AsSpan().SequenceEqual(expected.General) || !fresh.Illumination.AsSpan(0,64).SequenceEqual(expected.Illumination.AsSpan(0,64)) ||
+                !fresh.Bindings.AsSpan(0,192).SequenceEqual(expected.Bindings.AsSpan(0,192)) || !fresh.Rgb.AsSpan().SequenceEqual(expected.Rgb))
+                throw new InvalidOperationException("El plan intentaba alterar una región protegida.");
+            await backup(fresh);
+            if (fresh.SameData(expected)) return Current = fresh;
+            WriteFaulted = true;
+            foreach(var request in packets) Protocol.Response(request,await transport.ExchangeAsync(request,ct));
+            var after = await StableRead(ct); await backup(after);
+            if (!expected.SameData(after)) throw new IOException("La lectura final no coincide con el plan. No se harán reintentos ni restauraciones automáticas.");
+            WriteFaulted = false; return Current = after;
         }
         finally { gate.Release(); }
     }

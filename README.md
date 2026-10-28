@@ -1,22 +1,33 @@
-# K585 Studio · v0.1
+# K585 Studio
 
-Aplicación de Windows para Redragon K585 RGB (0C45:5004). Interfaz oscura inspirada en VictusFanControl, cuatro perfiles, imagen interactiva del teclado y editor lateral.
+Aplicación independiente para Redragon K585 RGB (USB 0C45:5004), con el estilo de VictusFanControl. Windows 10/11 x64.
 
-## Incluido
+**[Descargar el instalador EXE](https://github.com/Esteban-3055/K585Studio/releases/latest)** · [Funciones originales revisadas](docs/OEM-AUDIT.md) · [Protocolo v0.2](docs/PROTOCOL-v0.2.md)
 
-- Lectura doble del dispositivo y respaldos privados completos de su configuración.
-- **Perfil 1 protegido**: no se modifica ni desde proyectos importados.
-- Iluminación del **perfil 2**, incluidos brillo, velocidad, color fijo y Colorful de nuestra lluvia Serpenteo (modo 23).
-- Asignaciones locales de teclado, ratón, multimedia, funciones y macros. Los bordes naranjas indican borradores pendientes, todavía **no enviados al teclado**.
-- Editor de macros local, pausas, repeticiones, orden de pasos y captura solo dentro de la zona de grabación.
-- Importación/exportación de proyectos JSON propios.
-- Consulta de versiones estables de GitHub Releases; instalación manual en esta primera versión.
+## Funciones
 
-Hz, bindeos y macros del dispositivo permanecen en solo lectura hasta completar su validación. La frecuencia USB se muestra como opción global pendiente de habilitar. Dirección y pintura por tecla no están habilitadas. El modo 20 no está disponible en el firmware personalizado actual. Esta versión no actualiza firmware.
+- Cuatro perfiles con imagen interactiva del teclado y editor lateral. Perfil 1 protegido de forma permanente.
+- Reasignación de teclas, combinaciones, modificadores, ratón, multimedia y funciones en perfiles 2–4.
+- Biblioteca, editor y grabador de macros; escritura de macros nuevas sin sobrescribir las existentes. Captura solo dentro de la zona de grabación, sin hooks globales.
+- Iluminación y lluvia Serpenteo, color fijo/Colorful, brillo y velocidad con sus cinco niveles reales.
+- Frecuencia USB de 125/250/500/1000 Hz por perfil.
+- Dos lecturas coincidentes y respaldo completo antes de escribir; comparación integral después de aplicar.
+- Proyectos persistentes e importación/exportación JSON, incluidos los cambios pendientes.
+- Instalación por usuario y actualización desde GitHub con descarga, tamaño/SHA-256 y reconfirmación de la publicación antes de ejecutar el instalador.
 
-## Compilar y ejecutar
+## Uso
 
-Windows 10/11, SDK .NET 8:
+Cierra el programa original y las copias anteriores. Studio lee el teclado al iniciar. Seleccionar un perfil en la barra lateral abre su editor; activa M2, M3 o M4 físicamente y vuelve a leer antes de aplicar cambios a ese perfil. Mover un slider o preparar una asignación modifica únicamente el proyecto; cada botón **Aplicar** escribe y verifica su ajuste.
+
+El borde naranja indica una asignación distinta de fábrica o pendiente de aplicar. Fn y los botones M1–M4/REC conservan su función reservada. El perfil 1 es solo lectura, incluida su iluminación y frecuencia.
+
+El modo 23 requiere nuestro firmware de lluvia previamente instalado. La aplicación no instala firmware ni ejecuta resets. El modo 20 de pintura por tecla fue retirado de ese firmware y no se ofrece. No se convierten los archivos de configuración binarios del programa OEM.
+
+Los proyectos y respaldos privados quedan en `%LOCALAPPDATA%\K585Studio`. La desinstalación los conserva. Las macros anteriores del dispositivo no se mueven ni compactan; una tabla OEM sin espacio libre en su directorio se conserva. Consulta los límites y la evidencia en [VALIDATION.md](docs/VALIDATION.md).
+
+## Desarrollo
+
+SDK .NET 8 y Windows:
 
 ```powershell
 dotnet build K585Studio.sln -c Release
@@ -24,15 +35,12 @@ dotnet run --project tests/K585Studio.Checks -c Release --no-build
 dotnet run --project src/K585Studio.App -c Release --no-build
 ```
 
-Portable sin instalar .NET:
+Portable:
 
 ```powershell
-dotnet publish src/K585Studio.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o artifacts/K585Studio-win-x64
+dotnet publish src/K585Studio.App -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/K585Studio-win-x64
 ```
 
-Cierra por completo el programa original antes de conectar. La aplicación no cambia el perfil activo: para aplicar iluminación activa M2 físicamente y pulsa **Conectar / leer**. Mover controles solo prepara el ajuste; **Aplicar iluminación** realiza una escritura respaldada y verificada. La velocidad dispone de cinco niveles reales; el extremo izquierdo es el más lento.
+El workflow compila, ejecuta las pruebas, crea el instalador con Inno Setup y prueba instalación, actualización y desinstalación en el runner de GitHub. Solo publica una versión cuando todas esas etapas pasan. Una release existente nunca se sobrescribe.
 
-Proyectos, respaldos e informes se guardan en `%LOCALAPPDATA%\K585Studio`, fuera del repositorio. Los respaldos pueden contener macros personales; no los publiques.
-
-Consulta el [inventario de funciones original](docs/OEM-AUDIT.md) y el [procedimiento de validación](docs/VALIDATION.md) para distinguir lo comprobado físicamente, lo descodificado y lo pendiente. Studio es un proyecto independiente, sin afiliación con Redragon; el repositorio no redistribuye el ejecutable ni firmware del fabricante.
-Aplicación para controlar el Redragon K585 RGB con perfiles protegidos.
+No hay afiliación con Redragon. La imagen se usa tal como la proporcionó el propietario; no se afirma autoría sobre la marca o imagen. No se redistribuyen el programa OEM, firmware ni configuraciones personales.

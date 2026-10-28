@@ -1,5 +1,7 @@
 # Inventario del programa original y alcance de v0.1
 
+> Registro de la revisión inicial. La v0.2 habilita reasignaciones, macros y frecuencia por perfil; consulta [el protocolo actualizado](PROTOCOL-v0.2.md). Los pendientes de esta matriz describen v0.1 y no el estado actual.
+
 Revisión: 2026-10-27. Este inventario distingue recursos de interfaz, protocolo descodificado y prueba física. No implica haber ejecutado todos los comandos del original sobre el teclado. No se usó «Restore Default» para probarlo.
 
 ## Identificación de la fuente instalada

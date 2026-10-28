@@ -17,7 +17,7 @@ internal static class Storage
         foreach (var (name, bytes) in blocks) File.WriteAllBytes(Path.Combine(folder, name + ".bin"), bytes);
         File.WriteAllText(Path.Combine(folder, "manifest.json"), JsonSerializer.Serialize(new
         {
-            schema = 1, app = "0.1.0", device = "0C45:5004 / FF1C:0092", snapshot.ReadAt,
+            schema = 1, app = Updates.Current.ToString(), device = "0C45:5004 / FF1C:0092", snapshot.ReadAt,
             snapshot.ActiveProfile, snapshot.Digest, sha256 = blocks.ToDictionary(x => x.Key, x => Convert.ToHexString(SHA256.HashData(x.Value)))
         }, new JsonSerializerOptions { WriteIndented = true }));
         return Task.CompletedTask;
