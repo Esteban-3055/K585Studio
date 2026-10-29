@@ -40,7 +40,7 @@ $phases=@(@{Name='install';Installer=$firstInstaller},@{Name='upgrade';Installer
 foreach($item in $phases){
   $phase=$item.Name
   Write-Output "Starting $phase using $($item.Installer)"
-  $setupCode=Invoke-TestProcess -File $item.Installer -Arguments @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/NOICONS','/NOAUTOLAUNCH=1',('/DIR="'+$testAbsolute+'"'),('/LOG="'+(Join-Path $script:logRoot ($phase+'.log'))+'"')) -Stage $phase
+  $setupCode=Invoke-TestProcess -File $item.Installer -Arguments @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/NOCLOSEAPPLICATIONS','/NORESTARTAPPLICATIONS','/LOGCLOSEAPPLICATIONS','/CURRENTUSER','/NOICONS','/NOAUTOLAUNCH=1',('/DIR="'+$testAbsolute+'"'),('/LOG="'+(Join-Path $script:logRoot ($phase+'.log'))+'"')) -Stage $phase
   if($setupCode -ne 0){throw "$phase failed: $setupCode"}
   $installedApp=Join-Path $testAbsolute 'K585Studio.exe'
   if(-not(Test-Path -LiteralPath $installedApp)){throw 'Installed executable missing'}

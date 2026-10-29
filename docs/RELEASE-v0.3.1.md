@@ -6,6 +6,6 @@ Añade **Actualizaciones → Firmware del teclado**: carga de un EXE local recon
 
 Incluye una modificación opcional de **lluvia arcoíris en la estela**, marcada como experimental y desactivada por defecto. Requiere el EXE local; no se incluyen el programa OEM, imágenes completas de firmware ni datos personales. Esta variante está validada en emulación, pendiente de prueba física. El gestor exige la revisión estudiada y no garantiza recuperación ante un fallo de programación.
 
-Se conserva la edición de los cuatro perfiles y los proyectos existentes. La lluvia del firmware estudiado funciona en el perfil 2. La aplicación no restablece perfiles ni instala firmware durante el arranque o al instalar Studio.
+Se conserva la edición de los cuatro perfiles y los proyectos existentes. La lluvia del firmware estudiado funciona en el perfil 2. La aplicación no restablece perfiles ni instala firmware durante el arranque o al instalar Studio. El instalador espera al cierre de Studio y no utiliza el cierre automático de aplicaciones de Windows.
 
 Validación: compilación Release; pruebas de protocolo, modelo y actualizaciones; regresión de menús y navegación; revisión invisible de interfaz; pruebas locales de preparación con EXE original y Serpenteo sin ejecutarlos. El workflow valida además el EXE portable y la instalación, actualización y desinstalación antes de publicar. No se grabó el teclado para validar esta versión de Studio.

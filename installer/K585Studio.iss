@@ -24,7 +24,9 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
 AppMutex=Local\K585Studio.v01
 SetupMutex=K585StudioSetup
-CloseApplications=yes
+; Studio must close itself, especially while a firmware tool is running.
+; AppMutex and K585WAITPID handle the transition without shutting down others.
+CloseApplications=no
 CloseApplicationsFilter=K585Studio.exe
 RestartApplications=no
 UsePreviousAppDir=yes
