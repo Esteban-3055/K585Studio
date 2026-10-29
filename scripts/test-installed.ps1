@@ -1,16 +1,27 @@
 param([Parameter(Mandatory=$true)][string]$Installer,[Parameter(Mandatory=$true)][string]$TestDirectory,[string]$PreviousInstaller)
 $ErrorActionPreference='Stop'
-function Invoke-TestProcess([string]$File,[string[]]$Arguments,[string]$Stage){
-  $process=Start-Process -FilePath $File -ArgumentList $Arguments -WindowStyle Hidden -PassThru
+function Invoke-TestProcess([string]$File,[string[]]$Arguments,[string]$Stage,[int]$TimeoutMilliseconds=90000){
+  # Use CreateProcess directly: PowerShell's Start-Process can itself wait in
+  # ShellExecute before returning a Process, outside our timeout.
+  $start=[Diagnostics.ProcessStartInfo]::new()
+  $start.FileName=$File
+  $start.Arguments=[string]::Join(' ',$Arguments)
+  $start.UseShellExecute=$false
+  $start.CreateNoWindow=$true
+  $start.WindowStyle=[Diagnostics.ProcessWindowStyle]::Hidden
+  $process=[Diagnostics.Process]::new()
+  $process.StartInfo=$start
+  Write-Host "$Stage launching: $File"
+  if(-not $process.Start()){throw "$Stage could not start"}
   Write-Host "$Stage process started: $($process.Id)"
   # Start-Process -Wait also waits for descendants. Wait only for the exact
   # installer/app process, whose exit code and outputs are checked below.
-  if(-not $process.WaitForExit(90000)){
-    try{$process.Kill($true);$null=$process.WaitForExit(10000)}catch{Write-Warning $_.Exception.Message}
+  if(-not $process.WaitForExit($TimeoutMilliseconds)){
+    try{$process.Kill();$null=$process.WaitForExit(10000)}catch{Write-Warning $_.Exception.Message}
     foreach($log in Get-ChildItem -LiteralPath $script:logRoot -Filter '*.log' -ErrorAction SilentlyContinue){
       try{Get-Content -LiteralPath $log.FullName -Tail 60 | Write-Host}catch{Write-Warning $_.Exception.Message}
     }
-    throw "$Stage exceeded 90 seconds"
+    throw "$Stage exceeded $TimeoutMilliseconds ms"
   }
   $code=$process.ExitCode;$process.Dispose();return $code
 }
