@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: k585studio-${{ github.workflow }}-${{ github.ref }}
+  group: k585studio-${{ github.workflow }}-${{ github.ref }}-direct-process
   cancel-in-progress: true
 jobs:
   windows:
