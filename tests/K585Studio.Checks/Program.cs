@@ -150,6 +150,7 @@ if(fixtureFolder!=null)
     File.WriteAllText(Path.Combine(fixtureFolder,"profile-packets.json"),System.Text.Json.JsonSerializer.Serialize(packets));
 }
 await UpdateChecks.Run(Check,RejectAsync);
+await FirmwareChecks.Run(Check,Reject,RejectAsync,args.Length==2&&args[0]=="--firmware-updater"?args[1]:null);
 LibraryChecks.Run(Check,Reject);
 await ProfileChecks.Run(Check,Reject,RejectAsync);
 Console.WriteLine($"PASS: {checks} checks (protocol, profile selection, isolated writes, persistence, bindings, macros, report rates and releases). No physical device used.");

@@ -1,4 +1,12 @@
-# Validación de v0.3.0
+# Validación de v0.3.1
+
+v0.3.1: se corrige la destrucción de `ContextMenuStrip` dentro de `Closed`, observada en el evento .NET 1026 de Windows. La regresión invisible reproduce el fallo de obtener un handle después de ese patrón y comprueba que el menú nuevo permanece válido, se reutiliza y permite navegar al actualizador. También comprueba HTTP 403, JSON inválido y un reintento correcto sin abrir el navegador o USB.
+
+Resultado local: Release sin avisos, 546 comprobaciones normales, 571 al añadir el EXE original y 571 con el EXE Serpenteo; ambas ejecuciones locales incluyen de nuevo las comprobaciones normales. El portable v0.3.1 supera 84 comprobaciones de interfaz. Las capturas se dibujan sin mostrar ventanas ni controlar el escritorio. No se abrió HID ni se ejecutó un actualizador de firmware en estas pruebas.
+
+El gestor de firmware tiene comprobaciones locales adicionales con el EXE original y el Serpenteo del propietario, **sin ejecutarlos**: huellas del ejecutable y payload, reconstrucción exacta del código arcoíris desde ambas bases, conservación de los cuatro perfiles y todos los bloques, límites de diferencias, cancelación, revisión incorrecta, cambios posteriores a la preparación, archivo alterado, respaldo eliminado y reanudación del registro pendiente. Estos binarios no se incluyen ni descargan en CI. Las pruebas normales de CI y las pruebas con el archivo del propietario se contabilizan por separado.
+
+La incorporación de un gestor no prueba que una grabación física sea segura. Esta versión de Studio no se valida flasheando el teclado; véase [FIRMWARE.md](FIRMWARE.md). El candidato arcoíris continúa marcado como experimental.
 
 La prueba automática y la observación física son evidencias diferentes. Las capturas de la interfaz se generan en segundo plano con el mismo dibujado del producto, sin mostrar ventanas ni controlar otras aplicaciones.
 

@@ -5,7 +5,7 @@ using K585Studio.Core;
 
 namespace K585Studio.App;
 
-internal sealed class MainForm : Form
+internal sealed partial class MainForm : Form
 {
     internal StudioPage Page { get; private set; }
     internal int Profile { get; private set; } = 2;
@@ -28,7 +28,7 @@ internal sealed class MainForm : Form
     internal string? DownloadedInstaller { get; private set; }
     internal string UpdateStatus { get; private set; } = "Comprueba si hay una nueva versión disponible.";
     internal int? UpdateProgress { get; private set; }
-    internal bool CanWrite => !Busy && Snapshot?.ActiveProfile == Profile && session != null && !session.WriteFaulted;
+    internal bool CanWrite => !Busy && !FirmwareNeedsVerification && Snapshot?.ActiveProfile == Profile && session != null && !session.WriteFaulted;
     internal Lighting CurrentLighting => Draft.Lighting.GetValueOrDefault(Profile) ?? Snapshot?.Profile(Profile) ?? (Profile == 1 ? Lighting.Default with { Mode = 1 } : Lighting.Default);
     private Lighting EditableLighting => CurrentLighting with{Brightness=(byte)Math.Min(4,(int)CurrentLighting.Brightness),Speed=(byte)Math.Min(4,(int)CurrentLighting.Speed),Direction=CurrentLighting.Direction is 0 or 1 or 255?CurrentLighting.Direction:(byte)255};
     internal int? CurrentRate => Draft.ReportRates.TryGetValue(Profile,out int value) ? value : Snapshot != null && Snapshot.Illumination[(Profile-1)*64+15] <= 3 ? Snapshot.Illumination[(Profile-1)*64+15] : null;
@@ -42,25 +42,42 @@ internal sealed class MainForm : Form
     private readonly StudioCanvas canvas;
     private readonly bool isolated;
     private readonly CancellationTokenSource lifetime = new();
-    private readonly HttpClient http = new() { Timeout = TimeSpan.FromMinutes(10) };
+    private readonly HttpClient http;
+    private ContextMenuStrip? contextMenu;
     private KeyboardSession? session;
     private bool closeAfterOperation, checkingUpdates;
 
-    internal MainForm(bool autoConnect = true)
+    internal MainForm(bool autoConnect = true, HttpClient? updateClient = null)
     {
+        http = updateClient ?? new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
         isolated = !autoConnect; AutoScaleMode = AutoScaleMode.None; FormBorderStyle = FormBorderStyle.None;
         Text = "K585 Studio · v" + Updates.Current; BackColor = Theme.Background; StartPosition = FormStartPosition.CenterScreen;
         var working = Screen.FromControl(this).WorkingArea; float dpi = DeviceDpi / 96f;
         MinimumSize = new Size(Math.Min((int)(1040*dpi),working.Width-40),Math.Min((int)(620*dpi),working.Height-40));
         Size = new Size(Math.Min((int)(1360*dpi),working.Width-64),Math.Min((int)(766*dpi),working.Height-64));
         canvas = new StudioCanvas(this); Controls.Add(canvas);
-        canvas.Command += async id => await HandleCommand(id); canvas.ValueEdited += EditSlider;
+        canvas.Command += async id => await DispatchCommand(id); canvas.ValueEdited += EditSlider;
         canvas.DragTitle += () => { ReleaseCapture(); SendMessage(Handle,0xa1,new IntPtr(2),IntPtr.Zero); };
         if (!isolated && File.Exists(Storage.DraftFile))
         { try { Draft = StudioDraft.Load(Storage.DraftFile); } catch (Exception ex) { SetStatus("No se cargó el proyecto anterior: " + ex.Message,true); } }
+        if(!isolated)
+        {
+            try
+            {
+                PreparedFirmware=Firmware.LoadPending(FirmwareRoot);
+                if(PreparedFirmware!=null){FirmwareNeedsVerification=true;LoadedFirmware=PreparedFirmware.Inspection;FirmwareStatus="Hay una actualización pendiente de verificar. Cierra el actualizador y compara los ajustes con el respaldo.";}
+            }
+            catch(Exception ex){FirmwareNeedsVerification=true;FirmwareStatus="No se pudo recuperar el registro pendiente: "+ex.Message;SetStatus(FirmwareStatus,true);}
+        }
         SelectedMacro = Draft.Macros.FirstOrDefault()?.Id;
         if(autoConnect)Shown += async (_,_) => { await ReadKeyboard(); if(Draft.AutoCheckUpdates&&!IsDisposed)await CheckUpdates(true); };
         FormClosing += ClosingSafely;
+    }
+
+    private async Task DispatchCommand(string id)
+    {
+        try { await HandleCommand(id); }
+        catch (Exception ex) { SetStatus(ex.Message,true); if(!isolated)Storage.LogError(ex); }
     }
 
     internal bool IsModified(string key) => Draft.Profile(Profile).ContainsKey(key) || Snapshot != null &&
@@ -91,6 +108,17 @@ internal sealed class MainForm : Form
             case "macros":Page=StudioPage.Macros;break;
             case "settings":Page=StudioPage.Settings;break;
             case "updates":Page=StudioPage.Updates;break;
+            case "updates-app":FirmwareTab=false;Page=StudioPage.Updates;break;
+            case "updates-firmware":FirmwareTab=true;Page=StudioPage.Updates;break;
+            case "firmware-load":await LoadFirmware();break;
+            case "firmware-prepare":await PrepareFirmware();break;
+            case "firmware-open":await OpenFirmwareUpdater();break;
+            case "firmware-verify":await VerifyFirmwareConfiguration();break;
+            case "firmware-backup":if(PreparedFirmware is {} backup)Open(Path.GetDirectoryName(backup.Path)!);break;
+            case "firmware-rainbow":
+                if(HasFirmwareSource&&!FirmwareNeedsVerification){UseRainbowFirmware=!UseRainbowFirmware;PreparedFirmware=null;FirmwareStatus=UseRainbowFirmware?"Se preparará la lluvia arcoíris experimental, comprobada en emulación. Todavía no se ha instalado.":"Se usará el firmware del EXE cargado, conservando tus ajustes actuales.";}
+                break;
+            case "firmware-stop-tracking":StopFirmwareTracking();break;
             case "read":await ReadKeyboard();break;
             case "apply-light":await ApplyLighting();break;
             case "apply-rate":await ApplyRate();break;
@@ -124,15 +152,22 @@ internal sealed class MainForm : Form
     {
         var menu=Menu();foreach(var effect in Effects.All)
         {
-            var item=new ToolStripMenuItem(effect.ToString()){Checked=effect.Id==CurrentLighting.Mode};
+            var item=new ToolStripMenuItem(effect.ToString()){Checked=effect.Id==CurrentLighting.Mode,Enabled=effect.Id!=23||Profile==2};
             item.Click+=(_,_)=>{Draft.Lighting[Profile]=EditableLighting with{Mode=effect.Id};SaveProject();canvas.Invalidate();};menu.Items.Add(item);
         }
-        menu.Closed+=(_,_)=>menu.Dispose();menu.Show(Cursor.Position);
+        menu.Show(Cursor.Position);
     }
-    private static ContextMenuStrip Menu()=>new(){BackColor=Theme.Surface,ForeColor=Theme.Ink,Font=new Font("Segoe UI",11),ShowImageMargin=false};
+    private ContextMenuStrip Menu()
+    {
+        // WinForms still accesses the drop-down after Closed returns. Keep it
+        // owned by the form instead of disposing it inside that event.
+        contextMenu ??= new(){BackColor=Theme.Surface,ForeColor=Theme.Ink,Font=new Font("Segoe UI",11),ShowImageMargin=false};
+        foreach(ToolStripItem item in contextMenu.Items.Cast<ToolStripItem>().ToArray())item.Dispose();
+        return contextMenu;
+    }
     private void ShowAllMacros()
     {
-        var menu=Menu();foreach(var macro in Draft.Macros){var item=new ToolStripMenuItem(macro.Name);item.Click+=(_,_)=>{SelectedMacro=macro.Id;canvas.Invalidate();};menu.Items.Add(item);}menu.Closed+=(_,_)=>menu.Dispose();menu.Show(Cursor.Position);
+        var menu=Menu();foreach(var macro in Draft.Macros){var item=new ToolStripMenuItem(macro.Name);item.Click+=(_,_)=>{SelectedMacro=macro.Id;canvas.Invalidate();};menu.Items.Add(item);}menu.Show(Cursor.Position);
     }
     private void ShowDeviceMacros()
     {
@@ -154,7 +189,7 @@ internal sealed class MainForm : Form
             };
             menu.Items.Add(item);
         }
-        menu.Closed+=(_,_)=>menu.Dispose();menu.Show(Cursor.Position);
+        menu.Show(Cursor.Position);
     }
     private void ChooseColor()
     {
@@ -190,18 +225,21 @@ internal sealed class MainForm : Form
     }
     private async Task ReadKeyboard()
     {
-        await Run(async()=>
-        {
+        await Run(RefreshKeyboard);
+    }
+    private async Task RefreshKeyboard()
+    {
             SetStatus("Leyendo dos veces la configuración y guardando un respaldo…");session?.Dispose();session=null;Snapshot=null;DeviceMacros=[];
-            session=await Task.Run(()=>new KeyboardSession(NativeHid.Open(),Storage.Backup));
+            var opened=await Task.Run(()=>{var hid=NativeHid.Open();return (Session:new KeyboardSession(hid,Storage.Backup),hid.Revision);});
+            session=opened.Session;deviceRevision=opened.Revision;
             Snapshot=await Task.Run(()=>session.RefreshAsync(lifetime.Token));
             if(Snapshot.ActiveProfile is >=1 and <=4)Profile=Snapshot.ActiveProfile;
             SetStatus("Lectura verificada. Los ajustes pendientes se conservan.");ReadDeviceMacros();
-        });
     }
     private async Task SelectProfile(int profile)
     {
         Protocol.RequireEditableProfile(profile);
+        if(FirmwareNeedsVerification){SetStatus("Verifica la configuración después de cerrar el actualizador de firmware antes de cambiar de perfil.",true);return;}
         if(isolated&&session==null){Profile=profile;Page=StudioPage.Profile;canvas.Invalidate();return;}
         if(session?.WriteFaulted==true){SetStatus("La última escritura quedó sin verificar. Pulsa Conectar / leer antes de cambiar de perfil.",true);return;}
         if(session==null||Snapshot==null)await ReadKeyboard();
@@ -227,6 +265,7 @@ internal sealed class MainForm : Form
     private async Task ApplyLighting()
     {
         if(!CanWrite||session==null)return;int profile=Profile;var light=CurrentLighting;
+        if(light.Mode==23&&profile!=2){SetStatus("El firmware de lluvia estudiado admite el modo 23 únicamente en el perfil 2. Selecciona otro efecto para este perfil.",true);return;}
         await Run(async()=>{NativeHid.RequireOtherAppsClosed();Snapshot=await Task.Run(()=>session.ApplyLightingAsync(profile,light,Draft.RainFirmwareConfirmed,lifetime.Token));Draft.Lighting.Remove(profile);SaveProject();SetStatus($"Iluminación del perfil {profile} aplicada y verificada. Los demás ajustes se conservan.");});
     }
     private async Task ApplyRate()
@@ -264,14 +303,15 @@ internal sealed class MainForm : Form
         if(Busy)return;Busy=true;Error=false;canvas.Invalidate();
         try{await action();}
         catch(OperationCanceledException){SetStatus("Operación interrumpida. Vuelve a leer antes de aplicar.",true);}
-        catch(Exception ex){if(ex is IOException&&ex is not InvalidDataException)Snapshot=null;SetStatus(ex.Message,true);if(Page==StudioPage.Updates){UpdateStatus=ex.Message;UpdateProgress=null;}if(!isolated){Directory.CreateDirectory(Storage.Root);File.WriteAllText(Path.Combine(Storage.Root,"last-error.txt"),ex.ToString());}}
+        catch(Exception ex){if(ex is IOException&&ex is not InvalidDataException)Snapshot=null;SetStatus(ex.Message,true);if(Page==StudioPage.Updates){if(FirmwareTab)FirmwareStatus=ex.Message;else{UpdateStatus=ex.Message;UpdateProgress=null;}}if(!isolated)Storage.LogError(ex);}
         finally{if(session?.WriteFaulted==true)Snapshot=null;if(Snapshot==null)DeviceMacros=[];Busy=false;if(!IsDisposed)canvas.Invalidate();if(closeAfterOperation)Close();}
     }
     private async Task CheckUpdates(bool background)
     {
-        if(checkingUpdates||isolated)return;checkingUpdates=true;
+        if(checkingUpdates)return;checkingUpdates=true;
         try
         {
+            if(!background)Error=false;
             UpdateStatus="Consultando versiones estables de GitHub…";canvas.Invalidate();
             using var timeout=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);timeout.CancelAfter(TimeSpan.FromSeconds(25));
             var result=await Updates.CheckAsync(http,timeout.Token);
@@ -287,7 +327,7 @@ internal sealed class MainForm : Form
                 }
             }
         }
-        catch(Exception ex){UpdateStatus="No se pudo comprobar: "+ex.Message;if(!background)SetStatus(UpdateStatus,true);}
+        catch(Exception ex){UpdateStatus="No se pudo comprobar: "+ex.Message;if(!background)SetStatus(UpdateStatus,true);if(!isolated)Storage.LogError(ex);}
         finally{checkingUpdates=false;if(!IsDisposed)canvas.Invalidate();}
     }
     private async Task DownloadUpdate()
@@ -332,7 +372,7 @@ internal sealed class MainForm : Form
         if(Busy){e.Cancel=true;closeAfterOperation=true;SetStatus("Terminando la operación antes de cerrar…");return;}
         lifetime.Cancel();session?.Dispose();session=null;SaveProject();
     }
-    protected override void Dispose(bool disposing){if(disposing){session?.Dispose();lifetime.Dispose();http.Dispose();}base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing){contextMenu?.Dispose();session?.Dispose();lifetime.Dispose();http.Dispose();}base.Dispose(disposing);}
     protected override void WndProc(ref Message m)
     {
         base.WndProc(ref m);
@@ -411,6 +451,18 @@ internal sealed class MainForm : Form
             Snapshot=null;DeviceMacros=[];
             SetStatus("Los cambios se envían únicamente al pulsar Aplicar.");
             Page=StudioPage.Settings;Render("settings");Page=StudioPage.Updates;Render("updates");
+            RunUpdaterUiChecks(checks);
+            FirmwareTab=true;Render("firmware-empty");
+            Assert(!canvas.Hits.Single(h=>h.Id=="firmware-prepare").Enabled&&!canvas.Hits.Single(h=>h.Id=="firmware-open").Enabled,"Firmware cannot prepare or open without an audited local updater");
+            LoadedFirmware=new(Firmware.Known[0],new string('a',64),new string('b',64));firmwareSource=new byte[1];
+            Render("firmware-loaded");Assert(canvas.Hits.Single(h=>h.Id=="firmware-prepare").Enabled&&!canvas.Hits.Single(h=>h.Id=="firmware-open").Enabled,"Loading firmware enables preparation but never launch");
+            Assert(!UseRainbowFirmware,"Experimental rainbow preparation is opt-in");
+            Await(HandleCommand("firmware-rainbow"));Render("firmware-rainbow");Assert(UseRainbowFirmware&&PreparedFirmware==null,"Experimental choice is a local draft and invalidates any prepared package");
+            FirmwareNeedsVerification=true;Render("firmware-pending");
+            Assert(!canvas.Hits.Single(h=>h.Id=="firmware-load").Enabled&&!canvas.Hits.Single(h=>h.Id=="firmware-open").Enabled&&canvas.Hits.Single(h=>h.Id=="firmware-verify").Enabled,"Pending firmware exposes verification and prevents another updater");
+            Assert(!CanWrite,"Unverified firmware flow prevents configuration writes");
+            int beforeProfile=Profile;Await(HandleCommand("profile-4"));Assert(Profile==beforeProfile,"Pending firmware cannot change keyboard profile");
+            FirmwareNeedsVerification=false;LoadedFirmware=null;firmwareSource=null;FirmwareTab=false;UseRainbowFirmware=false;
             Page=StudioPage.Profile;Render("profile-1040x660",1040,660);Render("profile-1920x1080",1920,1080);
             using(var dialog=new AssignmentDialog("W",new("Teclado","Ctrl + X"),Draft.Macros))Assert(dialog.ValidateSelection()==new Assignment("Teclado","Ctrl + X"),"Assignment editor preserves combo");
             using(var dialog=new MacroDialog(macro,[])){Assert(dialog.GetDraft().Steps.Count==2,"Macro editor loads steps");dialog.Reorder(0,1);Assert(dialog.GetDraft().Steps[0].Action=="Tecla ↑","Macro reordering works");}

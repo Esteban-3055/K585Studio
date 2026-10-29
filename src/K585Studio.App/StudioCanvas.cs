@@ -223,7 +223,7 @@ internal sealed class StudioCanvas : Control
         Card(g,new(304,170,650,308));DrawText(g,"Dispositivo y perfiles",328,190,26,bold:true,width:600,height:46);
         DrawText(g,"Perfiles 1–4",328,254,21,width:200,height:40);DrawText(g,"Editables con respaldo y verificación",548,254,20,Color.FromArgb(0,237,111),370,40);
         Toggle(g,"rain-support","Firmware de lluvia instalado",Host.Draft.RainFirmwareConfirmed,new(328,317,602,48));
-        DrawText(g,"Actívalo solo en el K585 que ya tiene nuestro modo 23.\nLa aplicación no cambia ni instala firmware.",328,386,20,Theme.Muted,600,65);
+        DrawText(g,"Actívalo solo si el teclado ya tiene nuestro modo 23.\nEl gestor de firmware está en Actualizaciones.",328,386,20,Theme.Muted,600,65);
         Card(g,new(978,170,662,308));DrawText(g,"Actualizaciones",1002,190,26,bold:true,width:612,height:46);
         Toggle(g,"auto-updates","Buscar al iniciar",Host.Draft.AutoCheckUpdates,new(1002,254,612,50));
         DrawText(g,"Descarga verificada desde GitHub. La instalación\ncomienza únicamente cuando pulses Instalar.",1002,330,21,Theme.Muted,612,90);
@@ -235,20 +235,39 @@ internal sealed class StudioCanvas : Control
     private void UpdatesPage(Graphics g)
     {
         DrawText(g,"Actualizaciones",310,83,34,bold:true,width:1200,height:54);
-        Card(g,new(304,170,1336,330));DrawText(g,"K585 Studio",332,195,29,width:1000,bold:true,height:50);
-        DrawText(g,"Versión instalada: "+Updates.Current,332,260,23,Theme.Muted,1000,40);
-        DrawText(g,Host.UpdateStatus,332,325,24,Host.Error?Theme.Orange:Theme.Ink,1260,62);
-        Button(g,"update-check","Buscar actualizaciones",new(332,424,310,48),true);
-        Button(g,"update-download","Descargar",new(660,424,260,48),enabled:Host.AvailableUpdate!=null&&!Host.Busy);
-        Button(g,"update-install","Instalar y reiniciar",new(938,424,310,48),true,Host.DownloadedInstaller!=null&&!Host.Busy);
+        Button(g,"updates-app","Aplicación",new(310,150,240,46),!Host.FirmwareTab);
+        Button(g,"updates-firmware","Firmware del teclado",new(568,150,300,46),Host.FirmwareTab);
+        if(Host.FirmwareTab){FirmwarePage(g);return;}
+        Card(g,new(304,220,1336,300));DrawText(g,"K585 Studio",332,240,29,width:1000,bold:true,height:50);
+        DrawText(g,"Versión instalada: "+Updates.Current,332,295,23,Theme.Muted,1000,40);
+        DrawText(g,Host.UpdateStatus,332,345,24,Host.Error?Theme.Orange:Theme.Ink,1260,62);
+        Button(g,"update-check","Buscar actualizaciones",new(332,440,310,48),true);
+        Button(g,"update-download","Descargar",new(660,440,260,48),enabled:Host.AvailableUpdate!=null&&!Host.Busy);
+        Button(g,"update-install","Instalar y reiniciar",new(938,440,310,48),true,Host.DownloadedInstaller!=null&&!Host.Busy);
         if(Host.UpdateProgress is {} progress)
         {
-            var rect=new RectangleF(332,387,1250,12);using var bg=new SolidBrush(Theme.Border);g.FillRectangle(bg,rect);
+            var rect=new RectangleF(332,415,1250,12);using var bg=new SolidBrush(Theme.Border);g.FillRectangle(bg,rect);
             using var fill=new SolidBrush(Theme.Blue);g.FillRectangle(fill,rect.X,rect.Y,rect.Width*progress/100f,rect.Height);
         }
-        Card(g,new(304,525,1336,306));DrawText(g,"Versión operativa de escritorio",332,545,26,bold:true,width:1250,height:48);
+        Card(g,new(304,545,1336,286));DrawText(g,"Versión operativa de escritorio",332,565,26,bold:true,width:1250,height:48);
         DrawText(g,"Iluminación, reasignación de teclas, macros y frecuencia USB en los cuatro perfiles.\nSeleccionar un perfil lo activa. Cada escritura se respalda y se verifica.\nEl instalador es para tu usuario y conserva los proyectos y respaldos.",332,610,23,Theme.Muted,1250,140);
         Button(g,"github","Ver versiones en GitHub",new(332,767,340,44));
+    }
+    private void FirmwarePage(Graphics g)
+    {
+        Card(g,new(304,220,1336,390));DrawText(g,"Firmware del teclado",332,240,29,width:1250,bold:true,height:50);
+        DrawText(g,Host.LoadedFirmware?.Identity.Name??"Ningún actualizador cargado",332,296,23,Theme.Muted,1250,44);
+        DrawText(g,"K585 · placa 8388-A-Rev:1(16A) · VS11K16A · USB 0x0108",332,344,20,Theme.Muted,1250,38);
+        Toggle(g,"firmware-rainbow","Preparar lluvia arcoíris (experimental)",Host.UseRainbowFirmware,new(332,386,1250,40),Host.HasFirmwareSource&&!Host.FirmwareNeedsVerification);
+        DrawText(g,Host.FirmwareStatus,332,434,21,Host.Error?Theme.Orange:Theme.Ink,1250,78);
+        Button(g,"firmware-load","Cargar EXE local",new(332,527,260,48),enabled:!Host.FirmwareNeedsVerification);
+        Button(g,"firmware-prepare","Preparar y respaldar",new(610,527,310,48),true,Host.HasFirmwareSource&&!Host.FirmwareNeedsVerification);
+        Button(g,"firmware-open","Abrir actualizador",new(938,527,300,48),true,Host.PreparedFirmware!=null&&!Host.FirmwareNeedsVerification);
+        Button(g,"firmware-backup","Abrir respaldo",new(1256,527,354,48),enabled:Host.PreparedFirmware!=null);
+        Card(g,new(304,635,1336,196));DrawText(g,"Después de la actualización",332,651,26,bold:true,width:1250,height:46);
+        DrawText(g,"La grabación se inicia en la ventana de la herramienta. Su cierre no confirma éxito.\nDespués, Studio compara tus ajustes con el respaldo; no lee el código instalado.",332,704,20,Theme.Muted,900,80);
+        Button(g,"firmware-verify","Verificar ajustes",new(1270,724,340,48),true,Host.FirmwareNeedsVerification);
+        if(Host.FirmwareNeedsVerification)Button(g,"firmware-stop-tracking","Cerrar seguimiento",new(1270,784,340,32));
     }
     private PointF Reference(Point point) => new((point.X-dx)/scale,(point.Y-dy)/scale);
     internal void Invoke(string id)

@@ -8,6 +8,11 @@ internal static class Storage
 {
     public static string Root => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "K585Studio");
     public static string DraftFile => Path.Combine(Root, "project.json");
+    public static void LogError(Exception error)
+    {
+        try { Directory.CreateDirectory(Root);File.WriteAllText(Path.Combine(Root,"last-error.txt"),error.ToString()); }
+        catch (Exception) { /* Logging must not turn a handled error into a crash. */ }
+    }
     public static Task Backup(Snapshot snapshot)
     {
         var folder = Path.Combine(Root, "Backups", $"{snapshot.ReadAt:yyyyMMdd-HHmmss-fffffff}-{snapshot.Digest[..12]}");

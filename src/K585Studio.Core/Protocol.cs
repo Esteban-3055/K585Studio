@@ -97,7 +97,7 @@ public static class Effects
         new(8, "Ripple graff", "Efecto original 8."),
         new(9, "Fast run without trace", "Efecto reactivo 9, comprobado físicamente."),
         new(18, "Fast and the Furious", "Efecto original 18."),
-        new(23, "Lluvia · Serpenteo", "Recorridos variables, encendido suave y G1–G5. Colorful conserva el color de cada gota. Requiere nuestro firmware de lluvia.")
+        new(23, "Lluvia · Serpenteo", "Recorridos variables, encendido suave y G1–G5. Colorful depende del firmware: color por gota o arcoíris en la estela. Requiere nuestro firmware de lluvia.")
     ];
 }
 

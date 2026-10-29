@@ -10,7 +10,8 @@ internal sealed class NativeHid : ITransport
 {
     private readonly FileStream stream;
     private bool failed;
-    private NativeHid(SafeFileHandle handle) => stream = new FileStream(handle, FileAccess.ReadWrite, 1, true);
+    internal ushort Revision { get; }
+    private NativeHid(SafeFileHandle handle,ushort revision) { Revision=revision;stream = new FileStream(handle, FileAccess.ReadWrite, 1, true); }
 
     public static void RequireOtherAppsClosed()
     {
@@ -20,7 +21,7 @@ internal sealed class NativeHid : ITransport
             string name;
             try { name = process.ProcessName; } catch (InvalidOperationException) { continue; }
             if (name.StartsWith("Redragon K585", StringComparison.OrdinalIgnoreCase) ||
-                name.StartsWith("K585-", StringComparison.OrdinalIgnoreCase) || name.Equals("Update_Firmware", StringComparison.OrdinalIgnoreCase))
+                name.StartsWith("K585-", StringComparison.OrdinalIgnoreCase) || name.StartsWith("Update-K585", StringComparison.OrdinalIgnoreCase) || name.Equals("Update_Firmware", StringComparison.OrdinalIgnoreCase))
                 throw new IOException($"Cierra por completo «{name}», incluido su icono junto al reloj, antes de conectar.");
         }
     }
@@ -31,7 +32,7 @@ internal sealed class NativeHid : ITransport
         HidD_GetHidGuid(out var guid);
         var set = SetupDiGetClassDevs(ref guid, null, IntPtr.Zero, 0x12);
         if (set == new IntPtr(-1)) throw new Win32Exception();
-        var candidates = new List<string>();
+        var candidates = new List<(string Path,ushort Revision)>();
         try
         {
             for (uint index = 0; ; index++)
@@ -58,7 +59,7 @@ internal sealed class NativeHid : ITransport
                     try
                     {
                         if (HidP_GetCaps(pre, out var caps) == 0x110000 && caps.UsagePage == 0xff1c && caps.Usage == 0x92 &&
-                            caps.InputLength == 64 && caps.OutputLength == 64) candidates.Add(path);
+                            caps.InputLength == 64 && caps.OutputLength == 64) candidates.Add((path,attr.Version));
                     }
                     finally { HidD_FreePreparsedData(pre); }
                 }
@@ -67,9 +68,9 @@ internal sealed class NativeHid : ITransport
         }
         finally { SetupDiDestroyDeviceInfoList(set); }
         if (candidates.Count != 1) throw new IOException($"Se esperaba un K585 compatible; se encontraron {candidates.Count}. Conecta solo uno.");
-        var device = CreateFile(candidates[0], 0xc0000000, 3, IntPtr.Zero, 3, 0x40000000, IntPtr.Zero);
+        var device = CreateFile(candidates[0].Path, 0xc0000000, 3, IntPtr.Zero, 3, 0x40000000, IntPtr.Zero);
         if (device.IsInvalid) { device.Dispose(); throw new Win32Exception(); }
-        try { return new NativeHid(device); } catch { device.Dispose(); throw; }
+        try { return new NativeHid(device,candidates[0].Revision); } catch { device.Dispose(); throw; }
     }
 
     public async Task<byte[]> ExchangeAsync(byte[] request, CancellationToken cancellationToken)
