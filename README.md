@@ -15,7 +15,7 @@ Aplicación independiente para Redragon K585 RGB (USB 0C45:5004), con el estilo 
 - Dos lecturas coincidentes y respaldo completo antes de escribir; comparación integral después de aplicar.
 - Proyectos persistentes e importación/exportación JSON, incluidos los cambios pendientes.
 - Instalación por usuario y actualización desde GitHub con descarga, tamaño/SHA-256 y reconfirmación de la publicación antes de ejecutar el instalador.
-- Gestor de firmware con EXE local reconocido, respaldo nuevo de los cuatro perfiles y preparación que conserva la configuración. Incluye una modificación opcional de lluvia arcoíris, experimental y desactivada por defecto.
+- Gestor de firmware con el actualizador integrado, respaldo nuevo de los cuatro perfiles y preparación que conserva la configuración. Incluye una modificación opcional de lluvia arcoíris, experimental y desactivada por defecto. Admite también otro EXE local reconocido.
 
 ## Uso
 
@@ -31,7 +31,7 @@ En **Macros**, usa **Copiar del teclado** para seleccionar una macro almacenada 
 
 El modo 23 requiere nuestro firmware de lluvia y funciona únicamente en el perfil 2. El modo 20 de pintura por tecla fue retirado de ese firmware y no se ofrece. No se convierten los archivos de configuración binarios del programa OEM.
 
-En **Actualizaciones → Firmware del teclado**, carga tu EXE local, elige si quieres preparar la lluvia arcoíris experimental y pulsa **Preparar y respaldar**. Studio verifica el ejecutable y el firmware por sus huellas, comprueba la revisión USB e incorpora al paquete la configuración recién leída del dispositivo. Los borradores pendientes no se aplican. Después, **Abrir actualizador** vuelve a comprobar todo, libera USB y abre la herramienta original: la grabación comienza cuando pulsas **Start update** en esa ventana. No se pulsa automáticamente. Consulta [FIRMWARE.md](docs/FIRMWARE.md) para compatibilidad y límites.
+En **Actualizaciones → Firmware del teclado**, el actualizador integrado se carga y verifica en memoria. No necesitas buscar ni descargar un EXE aparte. Elige si quieres preparar la lluvia arcoíris experimental y pulsa **Preparar y respaldar**. Studio comprueba la revisión USB e incorpora al paquete la configuración recién leída del dispositivo. Los borradores pendientes no se aplican. Después, **Abrir actualizador** vuelve a comprobar todo, libera USB y abre la herramienta original: la grabación comienza cuando pulsas **Start update** en esa ventana. No se pulsa automáticamente. **Elegir otro EXE…** conserva la importación opcional y **Usar integrado** vuelve a la copia incluida. Consulta [FIRMWARE.md](docs/FIRMWARE.md) para compatibilidad y límites.
 
 Al terminar, **Verificar ajustes** compara la configuración con el respaldo. La aplicación no puede leer el código instalado ni confirmar por sí sola el resultado físico de la actualización. El seguimiento pendiente sobrevive a cerrar y abrir Studio; los respaldos quedan en `%LOCALAPPDATA%\K585Studio\Firmware`.
 
@@ -55,4 +55,4 @@ dotnet publish src/K585Studio.App -c Release -r win-x64 --self-contained true -p
 
 El workflow compila, ejecuta las pruebas, crea el instalador con Inno Setup y prueba instalación, actualización y desinstalación en el runner de GitHub. Solo publica una versión cuando todas esas etapas pasan. Una release existente nunca se sobrescribe.
 
-No hay afiliación con Redragon. La imagen se usa tal como la proporcionó el propietario; no se afirma autoría sobre la marca o imagen. No se redistribuyen el programa OEM, imágenes completas de firmware ni configuraciones personales. La modificación de lluvia se distribuye como diferencias de código y requiere el EXE local del propietario.
+No hay afiliación con Redragon. La imagen se usa tal como la proporcionó el propietario; no se afirma autoría sobre la marca o imagen. Desde v0.3.2 se incluye el actualizador original de firmware solicitado por el propietario, identificado en [THIRD-PARTY.md](THIRD-PARTY.md). Sus marcas y componentes pertenecen a sus respectivos titulares. No se incluye el programa OEM de configuración ni configuraciones personales. La modificación de lluvia se distribuye como diferencias de código.

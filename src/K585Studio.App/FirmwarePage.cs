@@ -6,7 +6,7 @@ namespace K585Studio.App;
 internal sealed partial class MainForm
 {
     internal bool FirmwareTab { get; private set; }
-    internal string FirmwareStatus { get; private set; }="Carga tu actualizador EXE local. No se descarga ni se instala firmware automáticamente.";
+    internal string FirmwareStatus { get; private set; }="El actualizador viene integrado. Se verifica en memoria al abrir esta pestaña; no se instala firmware automáticamente.";
     internal FirmwareInspection? LoadedFirmware { get; private set; }
     internal FirmwarePrepared? PreparedFirmware { get; private set; }
     internal bool FirmwareNeedsVerification { get; private set; }
@@ -15,6 +15,19 @@ internal sealed partial class MainForm
     private static string FirmwareRoot=>Path.Combine(Storage.Root,"Firmware");
     private byte[]? firmwareSource;
     private ushort deviceRevision;
+
+    private async Task LoadBundledFirmware(bool replace=false)
+    {
+        if(FirmwareNeedsVerification||!replace&&firmwareSource!=null)return;
+        await Run(async()=>
+        {
+            PreparedFirmware=null;LoadedFirmware=null;firmwareSource=null;UseRainbowFirmware=false;
+            FirmwareStatus="Verificando el actualizador integrado…";
+            var bytes=await Task.Run(Firmware.ReadBundledUpdater);
+            firmwareSource=bytes;LoadedFirmware=Firmware.Inspect(bytes);
+            FirmwareStatus="Actualizador integrado verificado. Preparar y respaldar incorpora los ajustes actuales del teclado antes de generar el EXE de actualización.";
+        });
+    }
 
     private async Task LoadFirmware()
     {

@@ -256,11 +256,12 @@ internal sealed class StudioCanvas : Control
     private void FirmwarePage(Graphics g)
     {
         Card(g,new(304,220,1336,390));DrawText(g,"Firmware del teclado",332,240,29,width:1250,bold:true,height:50);
-        DrawText(g,Host.LoadedFirmware?.Identity.Name??"Ningún actualizador cargado",332,296,23,Theme.Muted,1250,44);
+        DrawText(g,Host.LoadedFirmware?.Identity.Name??"Actualizador integrado disponible",332,296,23,Theme.Muted,930,44);
+        Button(g,"firmware-load","Elegir otro EXE…",new(1310,297,300,40),enabled:!Host.FirmwareNeedsVerification);
         DrawText(g,"K585 · placa 8388-A-Rev:1(16A) · VS11K16A · USB 0x0108",332,344,20,Theme.Muted,1250,38);
         Toggle(g,"firmware-rainbow","Preparar lluvia arcoíris (experimental)",Host.UseRainbowFirmware,new(332,386,1250,40),Host.HasFirmwareSource&&!Host.FirmwareNeedsVerification);
         DrawText(g,Host.FirmwareStatus,332,434,21,Host.Error?Theme.Orange:Theme.Ink,1250,78);
-        Button(g,"firmware-load","Cargar EXE local",new(332,527,260,48),enabled:!Host.FirmwareNeedsVerification);
+        Button(g,"firmware-bundled","Usar integrado",new(332,527,260,48),enabled:!Host.FirmwareNeedsVerification);
         Button(g,"firmware-prepare","Preparar y respaldar",new(610,527,310,48),true,Host.HasFirmwareSource&&!Host.FirmwareNeedsVerification);
         Button(g,"firmware-open","Abrir actualizador",new(938,527,300,48),true,Host.PreparedFirmware!=null&&!Host.FirmwareNeedsVerification);
         Button(g,"firmware-backup","Abrir respaldo",new(1256,527,354,48),enabled:Host.PreparedFirmware!=null);

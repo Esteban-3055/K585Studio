@@ -8,9 +8,13 @@ internal static class FirmwareChecks
         reject(()=>Firmware.Inspect(new byte[Firmware.UpdaterBytes]),"Unknown executable shell accepted");
         reject(()=>Firmware.ValidateTarget(0x109),"Wrong keyboard USB revision accepted");
         Firmware.ValidateTarget(0x108);check(true,"Audited keyboard revision accepted");
-        if(fixture==null)return;
-        byte[] input=await Firmware.ReadUpdaterAsync(fixture);var info=Firmware.Inspect(input);
-        check(Firmware.Known.Contains(info.Identity),"Local OEM updater recognized without executing it");
+        byte[] bundled=Firmware.ReadBundledUpdater();
+        check(bundled.Length==Firmware.UpdaterBytes&&Firmware.Hash(bundled)==Firmware.BundledUpdaterSha256,"Embedded updater exactly matches the original 20200409 file");
+        check(Firmware.Inspect(bundled).Identity==Firmware.Known[0],"Embedded updater has factory code and no private snapshot");
+        bundled[100]^=1;
+        check(Firmware.Hash(Firmware.ReadBundledUpdater())==Firmware.BundledUpdaterSha256,"Caller changes cannot corrupt another load of the embedded updater");
+        byte[] input=fixture==null?Firmware.ReadBundledUpdater():await Firmware.ReadUpdaterAsync(fixture);var info=Firmware.Inspect(input);
+        check(Firmware.Known.Contains(info.Identity),"OEM updater recognized without executing it");
         var rainbow=Firmware.WithRainbow(input);
         check(Firmware.Inspect(rainbow).Identity==Firmware.Known[2],"Embedded delta reconstructs exact offline rainbow candidate code");
         check(Firmware.WithRainbow(rainbow).SequenceEqual(rainbow),"Applying rainbow to the exact candidate is idempotent");
@@ -47,7 +51,9 @@ internal static class FirmwareChecks
             await rejectAsync(()=>Firmware.VerifyPreparedAsync(prepared,snapshot),"Modified prepared executable accepted");File.WriteAllBytes(prepared.Path,output);
             string backup=Path.Combine(Path.GetDirectoryName(prepared.Path)!,"macros.bin");File.Delete(backup);
             await rejectAsync(()=>Firmware.VerifyPreparedAsync(prepared,snapshot),"Missing backup ignored");
-            using var canceled=new CancellationTokenSource();canceled.Cancel();await rejectAsync(()=>Firmware.ReadUpdaterAsync(fixture,canceled.Token),"Canceled updater read ignored");
+            using var canceled=new CancellationTokenSource();canceled.Cancel();
+            bool cancellationObserved=false;try{await Firmware.ReadUpdaterAsync(prepared.Path,canceled.Token);}catch(OperationCanceledException){cancellationObserved=true;}
+            check(cancellationObserved,"Canceled updater read stops with cancellation");
         }
         finally
         {

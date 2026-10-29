@@ -1,4 +1,10 @@
-# Validación de v0.3.1
+# Validación de v0.3.2
+
+Resultado local v0.3.2: Release sin avisos, 574 comprobaciones de modelo/protocolo/firmware/actualizaciones y 87 de interfaz aprobadas. El recurso integrado coincide con el EXE original completo por tamaño y SHA-256; cada carga es independiente. La preparación y verificación se prueban con ajustes ficticios en una carpeta temporal, incluida la modificación arcoíris. No se ejecuta el actualizador ni se abre HID.
+
+La interfaz comprueba la carga automática en memoria al abrir la pestaña, reutilización al volver, restauración con Usar integrado y ausencia de paquete preparado al cargar el recurso. Conserva la prueba de regresión de menús y errores de GitHub. Las pruebas de instalación se ejecutan en el runner, con cierre explícito de Studio y sin cierre automático de otros procesos.
+
+## Validación previa
 
 v0.3.1: se corrige la destrucción de `ContextMenuStrip` dentro de `Closed`, observada en el evento .NET 1026 de Windows. La regresión invisible reproduce el fallo de obtener un handle después de ese patrón y comprueba que el menú nuevo permanece válido, se reutiliza y permite navegar al actualizador. También comprueba HTTP 403, JSON inválido y un reintento correcto sin abrir el navegador o USB.
 

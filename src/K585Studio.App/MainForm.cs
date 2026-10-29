@@ -107,9 +107,10 @@ internal sealed partial class MainForm : Form
         {
             case "macros":Page=StudioPage.Macros;break;
             case "settings":Page=StudioPage.Settings;break;
-            case "updates":Page=StudioPage.Updates;break;
+            case "updates":Page=StudioPage.Updates;if(FirmwareTab)await LoadBundledFirmware();break;
             case "updates-app":FirmwareTab=false;Page=StudioPage.Updates;break;
-            case "updates-firmware":FirmwareTab=true;Page=StudioPage.Updates;break;
+            case "updates-firmware":FirmwareTab=true;Page=StudioPage.Updates;await LoadBundledFirmware();break;
+            case "firmware-bundled":await LoadBundledFirmware(true);break;
             case "firmware-load":await LoadFirmware();break;
             case "firmware-prepare":await PrepareFirmware();break;
             case "firmware-open":await OpenFirmwareUpdater();break;
@@ -454,8 +455,9 @@ internal sealed partial class MainForm : Form
             RunUpdaterUiChecks(checks);
             FirmwareTab=true;Render("firmware-empty");
             Assert(!canvas.Hits.Single(h=>h.Id=="firmware-prepare").Enabled&&!canvas.Hits.Single(h=>h.Id=="firmware-open").Enabled,"Firmware cannot prepare or open without an audited local updater");
-            LoadedFirmware=new(Firmware.Known[0],new string('a',64),new string('b',64));firmwareSource=new byte[1];
-            Render("firmware-loaded");Assert(canvas.Hits.Single(h=>h.Id=="firmware-prepare").Enabled&&!canvas.Hits.Single(h=>h.Id=="firmware-open").Enabled,"Loading firmware enables preparation but never launch");
+            Await(HandleCommand("firmware-bundled"));Render("firmware-loaded");
+            Assert(HasFirmwareSource&&LoadedFirmware?.UpdaterSha256==Firmware.BundledUpdaterSha256,"Bundled updater loads and verifies in memory without an external file");
+            Assert(canvas.Hits.Single(h=>h.Id=="firmware-prepare").Enabled&&!canvas.Hits.Single(h=>h.Id=="firmware-open").Enabled,"Bundled updater enables preparation but never launch");
             Assert(!UseRainbowFirmware,"Experimental rainbow preparation is opt-in");
             Await(HandleCommand("firmware-rainbow"));Render("firmware-rainbow");Assert(UseRainbowFirmware&&PreparedFirmware==null,"Experimental choice is a local draft and invalidates any prepared package");
             FirmwareNeedsVerification=true;Render("firmware-pending");

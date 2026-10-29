@@ -1,4 +1,5 @@
 using System.Net;
+using System.Diagnostics;
 using System.Reflection;
 using K585Studio.Core;
 
@@ -9,6 +10,12 @@ internal sealed partial class MainForm
     private void RunUpdaterUiChecks(List<string> checks)
     {
         void Check(bool value,string label){if(!value)throw new InvalidOperationException(label);checks.Add(label);}
+        void Await(Task task)
+        {
+            var timer=Stopwatch.StartNew();
+            while(!task.IsCompleted){if(timer.Elapsed>TimeSpan.FromSeconds(10))throw new TimeoutException("Updater UI check did not finish.");Application.DoEvents();Thread.Sleep(1);}
+            task.GetAwaiter().GetResult();
+        }
         var closed=typeof(ToolStripDropDown).GetMethod("OnClosed",BindingFlags.Instance|BindingFlags.NonPublic)!;
         // Reproduce the event ordering in the actual Windows crash stack, with
         // no displayed menus, input injection or changes to the user's window.
@@ -31,8 +38,11 @@ internal sealed partial class MainForm
         Check(probe.Error&&!probe.checkingUpdates,"Invalid release response is handled and updater can retry");
         status=HttpStatusCode.NotFound;probe.HandleCommand("update-check").GetAwaiter().GetResult();
         Check(!probe.Error&&probe.AvailableUpdate==null&&!probe.checkingUpdates,"Retry succeeds after error and clears stale error state");
-        probe.HandleCommand("updates-firmware").GetAwaiter().GetResult();
+        Await(probe.HandleCommand("updates-firmware"));
         Check(probe.FirmwareTab&&probe.Page==StudioPage.Updates,"Firmware tab uses ordinary command routing without opening USB");
+        Check(probe.LoadedFirmware?.UpdaterSha256==Firmware.BundledUpdaterSha256&&probe.PreparedFirmware==null,"Firmware tab verifies the embedded updater without creating an executable or backup");
+        string originalStatus=probe.FirmwareStatus;Await(probe.HandleCommand("updates-firmware"));
+        Check(probe.FirmwareStatus==originalStatus&&!probe.Busy,"Returning to firmware tab reuses the validated in-memory source");
     }
     private sealed class UiUpdateHttp(Func<HttpRequestMessage,HttpResponseMessage> reply):HttpMessageHandler
     {

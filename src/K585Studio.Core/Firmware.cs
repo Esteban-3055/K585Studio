@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
 
@@ -13,6 +14,7 @@ public static class Firmware
 {
     public const int UpdaterBytes=2870272,PayloadOffset=2686512,PayloadBytes=65536;
     public const ushort SupportedRevision=0x0108;
+    public const string BundledUpdaterSha256="5e454925dce22c25c86f3ea5d71be80aa9dbfabdcc215c7e05b5fa2e9e85d72f";
     private const int ConfigurationStart=0x5400,ConfigurationEnd=0x7380;
     private const string ShellSha256="7672220446afb88675a9e67fe3f3f49d895aede9cad1ef74c05fc48d1721535c";
     public static readonly IReadOnlyList<FirmwareIdentity> Known=Array.AsReadOnly(new[]
@@ -22,6 +24,16 @@ public static class Firmware
         new FirmwareIdentity("Lluvia · Arcoíris en la estela (experimental)","42c23b381019a6d0ce5c182e502a6625391c283d280fdbc5bb40b0df9c9938b0",true)
     });
     public static string Hash(ReadOnlySpan<byte> bytes)=>Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+    public static byte[] ReadBundledUpdater()
+    {
+        using var resource=typeof(Firmware).Assembly.GetManifestResourceStream("K585Studio.Core.Assets.Update_Firmware.exe.gz")
+            ??throw new InvalidDataException("No se encontró el actualizador integrado. Reinstala Studio o carga un EXE local reconocido.");
+        using var input=new GZipStream(resource,CompressionMode.Decompress);
+        byte[] bytes=new byte[UpdaterBytes];input.ReadExactly(bytes);
+        if(input.ReadByte()!=-1||Hash(bytes)!=BundledUpdaterSha256||Inspect(bytes).Identity!=Known[0])
+            throw new InvalidDataException("El actualizador integrado no coincide con el original verificado. No se preparará ni ejecutará.");
+        return bytes;
+    }
     public static FirmwareInspection Inspect(byte[] updater)
     {
         if(updater.Length!=UpdaterBytes)throw new InvalidDataException("El archivo no tiene el tamaño del actualizador K585 estudiado.");

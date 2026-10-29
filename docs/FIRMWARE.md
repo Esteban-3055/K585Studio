@@ -1,6 +1,10 @@
 # Gestor de firmware
 
-Studio utiliza el actualizador OEM ya auditado como motor de grabación. No implementa nuevos comandos de borrado o programación ni automatiza Start update. El ejecutable completo no se distribuye con la aplicación: se selecciona una copia local del propietario.
+Studio utiliza el actualizador OEM ya auditado como motor de grabación. No implementa nuevos comandos de borrado o programación ni automatiza Start update. Desde v0.3.2 el EXE original viene incluido como recurso comprimido; no necesita un archivo externo, acceso a Internet ni una ruta del equipo del propietario. También se puede seleccionar otro EXE local reconocido.
+
+Al abrir la pestaña de firmware se descomprime una copia acotada a 2.870.272 bytes en memoria y se comprueba el SHA-256 completo `5e454925dce22c25c86f3ea5d71be80aa9dbfabdcc215c7e05b5fa2e9e85d72f`, además de las huellas del código del actualizador y del firmware original. Cada lectura produce un arreglo nuevo; una modificación no altera la copia integrada.
+
+No se extrae ni ejecuta el EXE al abrir el panel, iniciar o instalar Studio. El archivo ejecutable privado se genera al preparar, después de leer y respaldar el teclado, y con todos los ajustes actuales incorporados. La actualización física sigue siendo manual. La copia integrada es el original de fábrica, no uno de los paquetes históricos que contienen configuraciones del propietario. Véase [THIRD-PARTY.md](../THIRD-PARTY.md).
 
 ## Compatibilidad
 
@@ -12,7 +16,7 @@ Los códigos reconocidos son original, Serpenteo previamente probado y el candid
 
 ## Flujo
 
-1. Cargar un EXE local. Se lee una copia acotada en memoria y se comprueban sus huellas. No se ejecuta.
+1. Abrir la pestaña de firmware. Se carga y verifica el EXE integrado en memoria. **Usar integrado** restaura esa fuente; **Elegir otro EXE…** permite la importación opcional. No se ejecuta la herramienta.
 2. Opcionalmente activar **Preparar lluvia arcoíris (experimental)**. Se reconstruye el candidato exacto mediante diferencias de código incorporadas a Studio. Conserva la paleta nativa; no incluye configuraciones de otro teclado. Desactivado por defecto.
 3. Preparar y respaldar. Studio vuelve a abrir la colección USB correcta, exige dos lecturas coincidentes, guarda el respaldo y copia todos los ajustes actuales al recurso del actualizador: general, los cuatro perfiles, bindeos, macros y RGB. Conserva los borradores locales sin enviarlos.
 4. Abrir actualizador. Se muestran firmware y compatibilidad para confirmación. Se vuelve a leer y respaldar el teclado; si cambió desde la preparación, se exige preparar de nuevo. También se verifica el archivo y los bloques del respaldo. Se cierra el handle HID de Studio y se abre el EXE privado preparado.
@@ -41,10 +45,10 @@ Esta variante **todavía no está probada físicamente**. El contador de color p
 
 La herramienta OEM realiza una actualización completa de la aplicación, 30.720 bytes; no escribe únicamente el hueco del efecto. Puede borrar más memoria de la que cambia el código. El respaldo de ajustes no equivale a un respaldo del cargador, y el archivo de firmware anterior no garantiza recuperación por USB si el cargador deja de responder. No hay una vía de recuperación demostrada para un fallo de programación de esta placa.
 
-Las pruebas de Studio no abren el EXE del actualizador ni escriben firmware. Las pruebas positivas con el archivo del propietario son opcionales y locales:
+Las pruebas de Studio no ejecutan el actualizador ni escriben firmware. Desde v0.3.2 las pruebas normales también comprueban la identidad exacta del recurso, su independencia entre lecturas, la reconstrucción de arcoíris, la preparación con ajustes ficticios, el respaldo y la verificación antes de ejecutar. Se ejecutan en CI sin archivos del escritorio ni dispositivo conectado. Probar otro archivo del propietario sigue siendo opcional:
 
 ```powershell
 dotnet run --project tests/K585Studio.Checks -c Release -- --firmware-updater "C:\ruta\Update_Firmware.exe"
 ```
 
-Comprueban huellas, reconstrucción del candidato, límites de escritura, incorporación exacta de ajustes, respaldo, reanudación del seguimiento, cambios externos, archivos alterados, revisión incorrecta y cancelación. Los binarios OEM y datos de configuración no son fixtures del repositorio ni se descargan en CI.
+Comprueban huellas, reconstrucción del candidato, límites de escritura, incorporación exacta de ajustes, respaldo, reanudación del seguimiento, cambios externos, archivos alterados, revisión incorrecta y cancelación. El recurso original forma parte del producto; los paquetes del propietario, datos privados y lecturas reales del teclado no son fixtures ni se descargan en CI.
