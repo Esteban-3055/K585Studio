@@ -6,9 +6,12 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>K585Studio</AssemblyName>
     <Product>K585 Studio</Product>
+    <ApplicationIcon>Assets/app.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../K585Studio.Core/K585Studio.Core.csproj" />
     <EmbeddedResource Include="Assets/keyboard.png" />
+    <EmbeddedResource Include="Assets/app.ico" />
+    <EmbeddedResource Include="Assets/app-icon.png" />
   </ItemGroup>
 </Project>

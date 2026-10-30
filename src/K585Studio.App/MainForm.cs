@@ -40,6 +40,7 @@ internal sealed partial class MainForm : Form
         ? $"Selecciona de nuevo Perfil {Profile} para activarlo en el teclado." : CurrentLighting.Mode == 23 && !Draft.RainFirmwareConfirmed
         ? "Confirma el firmware de lluvia en Configuración." : PendingMacroPreview is {Ready:false} preview ? preview.Message : Status;
     private readonly StudioCanvas canvas;
+    private readonly Icon applicationIcon;
     private readonly bool isolated;
     private readonly CancellationTokenSource lifetime = new();
     private readonly HttpClient http;
@@ -52,6 +53,7 @@ internal sealed partial class MainForm : Form
         http = updateClient ?? new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
         isolated = !autoConnect; AutoScaleMode = AutoScaleMode.None; FormBorderStyle = FormBorderStyle.None;
         Text = "K585 Studio · v" + Updates.Current; BackColor = Theme.Background; StartPosition = FormStartPosition.CenterScreen;
+        applicationIcon = Branding.LoadIcon(); Icon = applicationIcon;
         var working = Screen.FromControl(this).WorkingArea; float dpi = DeviceDpi / 96f;
         MinimumSize = new Size(Math.Min((int)(1040*dpi),working.Width-40),Math.Min((int)(620*dpi),working.Height-40));
         Size = new Size(Math.Min((int)(1360*dpi),working.Width-64),Math.Min((int)(766*dpi),working.Height-64));
@@ -373,7 +375,7 @@ internal sealed partial class MainForm : Form
         if(Busy){e.Cancel=true;closeAfterOperation=true;SetStatus("Terminando la operación antes de cerrar…");return;}
         lifetime.Cancel();session?.Dispose();session=null;SaveProject();
     }
-    protected override void Dispose(bool disposing){if(disposing){contextMenu?.Dispose();session?.Dispose();lifetime.Dispose();http.Dispose();}base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing){contextMenu?.Dispose();session?.Dispose();lifetime.Dispose();http.Dispose();}base.Dispose(disposing);if(disposing)applicationIcon.Dispose();}
     protected override void WndProc(ref Message m)
     {
         base.WndProc(ref m);

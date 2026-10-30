@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.3.3"
+  #define AppVersion "0.3.4"
 #endif
 #ifndef PublishDir
   #define PublishDir "..\artifacts\K585Studio-win-x64"
@@ -40,6 +40,7 @@ Compression=lzma2/normal
 SolidCompression=yes
 WizardStyle=modern
 SetupLogging=yes
+SetupIconFile=..\src\K585Studio.App\Assets\app.ico
 VersionInfoVersion={#AppVersion}
 VersionInfoProductName=K585 Studio
 

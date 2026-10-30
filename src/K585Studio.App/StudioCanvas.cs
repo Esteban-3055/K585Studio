@@ -12,6 +12,7 @@ internal sealed class StudioCanvas : Control
     internal const float ReferenceWidth = 1672, ReferenceHeight = 941;
     private readonly Dictionary<int, Font> fonts = [];
     private readonly Image keyboard;
+    private readonly Image applicationImage;
     private readonly List<StudioHit> hits = [];
     private float scale = 1, dx, dy;
     private string? focusId, dragging;
@@ -29,6 +30,7 @@ internal sealed class StudioCanvas : Control
         BackColor = Theme.Background; AccessibleName = "K585 Studio"; AccessibleRole = AccessibleRole.Pane;
         using var source = typeof(StudioCanvas).Assembly.GetManifestResourceStream("K585Studio.App.Assets.keyboard.png")!;
         using var image = Image.FromStream(source); keyboard = new Bitmap(image);
+        applicationImage = Branding.LoadImage();
     }
     private Font F(int size) { if (!fonts.TryGetValue(size, out var font)) fonts[size] = font = new("Segoe UI", size, FontStyle.Regular, GraphicsUnit.Pixel); return font; }
     private void DrawText(Graphics g, string text, float x, float y, int size = 22, Color? color = null, float width = 1200, float height = 55, bool bold = false, bool center = false)
@@ -100,7 +102,8 @@ internal sealed class StudioCanvas : Control
         g.TranslateTransform(dx,dy);g.ScaleTransform(scale,scale);hits.Clear();
         using(var brush=new SolidBrush(Theme.Background))g.FillRectangle(brush,0,0,ReferenceWidth,ReferenceHeight);
         using(var pen=new Pen(Theme.Border)){g.DrawLine(pen,0,64,1672,64);g.DrawLine(pen,279,64,279,882);g.DrawLine(pen,0,882,1672,882);g.DrawRectangle(pen,1,1,1670,939);}
-        Icon(g,"keyboard",24,17,36,Theme.Blue);DrawText(g,"K585 Studio",76,8,25,width:210,bold:true);DrawText(g,"│",288,8,26,Theme.Muted,25);
+        var previousInterpolation=g.InterpolationMode;g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.DrawImage(applicationImage,new RectangleF(24,12,40,40));g.InterpolationMode=previousInterpolation;
+        DrawText(g,"K585 Studio",76,8,25,width:210,bold:true);DrawText(g,"│",288,8,26,Theme.Muted,25);
         DrawText(g,"Redragon K585RGB",328,8,23,Theme.Muted,650);
         DrawText(g,Host.Snapshot==null?"Sin conectar":$"Perfil activo: {Host.Snapshot.ActiveProfile}",1080,10,20,Host.Snapshot==null?Theme.Muted:Color.FromArgb(0,237,111),330);
         Button(g,"minimize","−",new(1450,8,54,45));Button(g,"maximize","□",new(1524,8,54,45));Button(g,"close","×",new(1598,8,54,45));
@@ -320,5 +323,5 @@ internal sealed class StudioCanvas : Control
         public override Rectangle Bounds=>owner.RectangleToScreen(new Rectangle((int)(owner.dx+hit.Bounds.X*owner.scale),(int)(owner.dy+hit.Bounds.Y*owner.scale),(int)(hit.Bounds.Width*owner.scale),(int)(hit.Bounds.Height*owner.scale)));
         public override void DoDefaultAction(){if(hit.Enabled)owner.Invoke(hit.Id);}
     }
-    protected override void Dispose(bool disposing){if(disposing){keyboard.Dispose();foreach(var font in fonts.Values)font.Dispose();}base.Dispose(disposing);}
+    protected override void Dispose(bool disposing){if(disposing){keyboard.Dispose();applicationImage.Dispose();foreach(var font in fonts.Values)font.Dispose();}base.Dispose(disposing);}
 }

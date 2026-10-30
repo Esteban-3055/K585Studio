@@ -12,7 +12,7 @@ public static class Updates
 {
     public const string Repository = "Esteban-3055/K585Studio";
     public const long MaximumInstallerBytes = 256L * 1024 * 1024;
-    public static readonly Version Current = new(0, 3, 3);
+    public static readonly Version Current = new(0, 3, 4);
     public static string InstallerName(Version version) => $"K585Studio-{version}-Setup-win-x64.exe";
     public static UpdateResult Parse(string json) => Parse(json, Current);
     public static UpdateResult Parse(string json, Version current)
