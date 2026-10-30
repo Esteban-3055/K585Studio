@@ -21,7 +21,8 @@ public static class Firmware
     {
         new FirmwareIdentity("Original K585 · 20200409","5e10f91d2aa37ac938b4b11aacc565b7a106e39d9b25e7836388b3e11de2fce5",false),
         new FirmwareIdentity("Lluvia · Serpenteo","c626f72e6f901f9b50c13ae9cd4f0b78241d6d3a9dff5bc7a711cce8466905dc",false),
-        new FirmwareIdentity("Lluvia · Arcoíris en la estela (experimental)","42c23b381019a6d0ce5c182e502a6625391c283d280fdbc5bb40b0df9c9938b0",true)
+        new FirmwareIdentity("Lluvia · Arcoíris en la estela (experimental)","42c23b381019a6d0ce5c182e502a6625391c283d280fdbc5bb40b0df9c9938b0",true),
+        new FirmwareIdentity("Lluvia · Selección optimizada (experimental)","fcf256c124f1125a7e3a8838c46a5aa96e58650252e9ece7ed7547f7e55f470b",true)
     });
     public static string Hash(ReadOnlySpan<byte> bytes)=>Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     public static byte[] ReadBundledUpdater()
@@ -51,13 +52,17 @@ public static class Firmware
         if(stream.Length!=UpdaterBytes)throw new InvalidDataException("Tamaño de actualizador K585 no reconocido.");
         byte[] bytes=new byte[UpdaterBytes];await stream.ReadExactlyAsync(bytes,ct);return bytes;
     }
-    public static byte[] WithRainbow(byte[] updater)
+    public static byte[] WithRainbow(byte[] updater)=>ApplyDelta(updater,"RainbowPatch.json",Known[2]);
+    public static byte[] WithSelectedRain(byte[] updater)=>ApplyDelta(updater,"SelectedRainPatch.json",Known[3]);
+    private static byte[] ApplyDelta(byte[] updater,string resource,FirmwareIdentity target)
     {
-        var source=Inspect(updater);if(source.Identity==Known[2])return updater.ToArray();
-        using var stream=typeof(Firmware).Assembly.GetManifestResourceStream("K585Studio.Core.RainbowPatch.json")??throw new InvalidDataException("Falta la modificación de lluvia.");
+        var source=Inspect(updater);if(source.Identity==target)return updater.ToArray();
+        using var stream=typeof(Firmware).Assembly.GetManifestResourceStream("K585Studio.Core."+resource)??throw new InvalidDataException("Falta la modificación de lluvia.");
         using var document=JsonDocument.Parse(stream);var root=document.RootElement;
-        if(root.GetProperty("schema").GetInt32()!=1||root.GetProperty("targetCodeSha256").GetString()!=Known[2].CodeSha256)throw new InvalidDataException("Versión de modificación no reconocida.");
-        var plan=root.GetProperty("plans").EnumerateArray().Single(x=>x.GetProperty("sourceCodeSha256").GetString()==source.Identity.CodeSha256);
+        if(root.GetProperty("schema").GetInt32()!=1||root.GetProperty("targetCodeSha256").GetString()!=target.CodeSha256)throw new InvalidDataException("Versión de modificación no reconocida.");
+        var plans=root.GetProperty("plans").EnumerateArray().Where(x=>x.GetProperty("sourceCodeSha256").GetString()==source.Identity.CodeSha256).ToArray();
+        if(plans.Length!=1)throw new InvalidDataException("No existe una conversión verificada desde esta versión al firmware elegido.");
+        var plan=plans[0];
         byte[] result=updater.ToArray();
         foreach(var patch in plan.GetProperty("patches").EnumerateArray())
         {
@@ -65,7 +70,7 @@ public static class Firmware
             if(offset<0x100||bytes.Length==0||offset>ConfigurationStart-bytes.Length)throw new InvalidDataException("La modificación intenta salir de sus regiones de código.");
             bytes.CopyTo(result,PayloadOffset+offset);
         }
-        if(Inspect(result).Identity!=Known[2]||!updater.AsSpan(PayloadOffset+ConfigurationStart,ConfigurationEnd-ConfigurationStart).SequenceEqual(result.AsSpan(PayloadOffset+ConfigurationStart,ConfigurationEnd-ConfigurationStart)))
+        if(Inspect(result).Identity!=target||!updater.AsSpan(PayloadOffset+ConfigurationStart,ConfigurationEnd-ConfigurationStart).SequenceEqual(result.AsSpan(PayloadOffset+ConfigurationStart,ConfigurationEnd-ConfigurationStart)))
             throw new InvalidDataException("El resultado no coincide con el candidato de lluvia verificado.");
         return result;
     }

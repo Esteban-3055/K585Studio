@@ -12,12 +12,12 @@ Solo se estudió el Redragon K585, placa **8388-A-Rev:1(16A), VS11K16A**, USB `0
 
 Se reconoce exclusivamente el ejecutable de 2.870.272 bytes cuya estructura coincide con el Update_Firmware.exe de 20200409 estudiado. El recurso de firmware tiene 65.536 bytes y comienza en el desplazamiento 2.686.512. Se comprueba SHA-256 del ejecutable con el recurso puesto a cero y del firmware con su región de configuración puesta a cero. Cambiar el código del actualizador, usar otro formato o un firmware no reconocido impide la preparación y ejecución.
 
-Los códigos reconocidos son original, Serpenteo previamente probado y el candidato de arcoíris en la estela. Que una versión esté reconocida identifica sus bytes; no demuestra compatibilidad con todos los K585 ni garantiza recuperación.
+Los códigos reconocidos desde v0.3.3 son original, Serpenteo previamente probado, el candidato anterior de arcoíris y la selección optimizada. Que una versión esté reconocida identifica sus bytes; no demuestra compatibilidad con todos los K585 ni garantiza recuperación.
 
 ## Flujo
 
 1. Abrir la pestaña de firmware. Se carga y verifica el EXE integrado en memoria. **Usar integrado** restaura esa fuente; **Elegir otro EXE…** permite la importación opcional. No se ejecuta la herramienta.
-2. Opcionalmente activar **Preparar lluvia arcoíris (experimental)**. Se reconstruye el candidato exacto mediante diferencias de código incorporadas a Studio. Conserva la paleta nativa; no incluye configuraciones de otro teclado. Desactivado por defecto.
+2. Desde v0.3.3, activar opcionalmente **Preparar lluvia seleccionada · preset fijo (experimental)**. Se reconstruye el candidato optimizado exacto mediante diferencias de código incorporadas a Studio. Conserva la paleta nativa; no incluye configuraciones de otro teclado. Desactivado por defecto. La versión v0.3.2 conserva su opción anterior de arcoíris.
 3. Preparar y respaldar. Studio vuelve a abrir la colección USB correcta, exige dos lecturas coincidentes, guarda el respaldo y copia todos los ajustes actuales al recurso del actualizador: general, los cuatro perfiles, bindeos, macros y RGB. Conserva los borradores locales sin enviarlos.
 4. Abrir actualizador. Se muestran firmware y compatibilidad para confirmación. Se vuelve a leer y respaldar el teclado; si cambió desde la preparación, se exige preparar de nuevo. También se verifica el archivo y los bloques del respaldo. Se cierra el handle HID de Studio y se abre el EXE privado preparado.
 5. La herramienta original controla la actualización. El usuario pulsa Start update y observa su resultado. Studio permanece ocupado y no permite operaciones USB ni termina forzosamente el proceso durante la espera.
@@ -33,7 +33,19 @@ El firmware original no contiene modo 23. Serpenteo y el candidato arcoíris no 
 
 La variante arcoíris mantiene la configuración leída: instalarla no activa automáticamente modo 23 ni Colorful. Tras comprobar la actualización y los ajustes, el propietario puede seleccionar perfil 2, efecto 23 y Colorful. En esa variante, Colorful sustituye el color constante por gota por un arcoíris en la estela; el RGB fijo sigue disponible.
 
-## Candidato experimental
+## Selección optimizada de v0.3.3
+
+La elección fija del simulador está integrada en la preparación mediante `Firmware.WithSelectedRain`. Reconstruye el código normalizado `fcf256c124f1125a7e3a8838c46a5aa96e58650252e9ece7ed7547f7e55f470b` desde original, Serpenteo o arcoíris anterior. Los planes de `SelectedRainPatch.json` solo contienen diferencias inferiores a `0x5400`; la configuración leída se incorpora después. Las tres conversiones se verificaron, junto con la preservación de perfiles y las restricciones de efectos.
+
+La selección ocupa 930 bytes con sus adaptadores, más diez del despacho. Su entrada es de 1998 ms nominales en velocidad mínima y no cambia entre los seis ritmos individuales de caída. La caída media es de 1845 ms, con valores de 1620 a 2070 ms; el ciclo de color es de 4500 ms, con desfase siete. Hay cinco gotas máximas, nacimientos repartidos, catorce rutas compactas y finales alternos Ctrl/Fn desde G2. Utiliza 56 bytes de estado y conserva el efecto 1.
+
+Para reproducir ese preset después de una instalación autorizada, seleccionar perfil 2, modo 23, Colorful y velocidad mínima, valor guardado 4. Preparar el paquete no impone esos ajustes: conserva exactamente los leídos y no activa efectos automáticamente. El slider nativo todavía escala caída, entrada y pausas conjuntamente. El motor con todos los parámetros ajustables queda pendiente.
+
+La vista previa se comparó con 24.000 cuadros del candidato ARM en las diez combinaciones de color y brillo. La comprobación nativa adicional incluye 1023 casos restantes de perfil/modo, pruebas de entrada por fila y ritmo, eventos de teclado, temporizador y una secuencia de 30 minutos nominales. No es una prueba física. Fuentes, límites y resumen de evidencia en [selected-rain](../firmware/selected-rain/README.md).
+
+Instalar o abrir Studio no instala el firmware por sí solo. La prueba física sigue pendiente y utiliza el mismo flujo explícito de respaldo, revisión, apertura manual y comparación posterior.
+
+## Candidato anterior de arcoíris
 
 El núcleo y adaptadores ocupan 910 bytes; el área principal de 452 bytes está llena. El estado temporal usa 56 bytes. Reutiliza la paleta original de 192 colores y conserva el efecto 1. Utiliza trece recorridos compactos, hasta cinco gotas y un ciclo de color fijo de diez segundos nominales, independiente de los cinco niveles de velocidad. A velocidad mínima, el recorrido nominal es de 990 ms y el encendido suave de 1206 ms. No implementa todos los controles del simulador.
 

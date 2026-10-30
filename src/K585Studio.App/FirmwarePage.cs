@@ -11,7 +11,7 @@ internal sealed partial class MainForm
     internal FirmwarePrepared? PreparedFirmware { get; private set; }
     internal bool FirmwareNeedsVerification { get; private set; }
     internal bool HasFirmwareSource => firmwareSource!=null;
-    internal bool UseRainbowFirmware { get; private set; }
+    internal bool UseSelectedRainFirmware { get; private set; }
     private static string FirmwareRoot=>Path.Combine(Storage.Root,"Firmware");
     private byte[]? firmwareSource;
     private ushort deviceRevision;
@@ -21,7 +21,7 @@ internal sealed partial class MainForm
         if(FirmwareNeedsVerification||!replace&&firmwareSource!=null)return;
         await Run(async()=>
         {
-            PreparedFirmware=null;LoadedFirmware=null;firmwareSource=null;UseRainbowFirmware=false;
+            PreparedFirmware=null;LoadedFirmware=null;firmwareSource=null;UseSelectedRainFirmware=false;
             FirmwareStatus="Verificando el actualizador integrado…";
             var bytes=await Task.Run(Firmware.ReadBundledUpdater);
             firmwareSource=bytes;LoadedFirmware=Firmware.Inspect(bytes);
@@ -37,7 +37,7 @@ internal sealed partial class MainForm
         // Reading and hashing is bounded to the audited 2.9 MB executable.
         await Run(async()=>
         {
-            PreparedFirmware=null;LoadedFirmware=null;firmwareSource=null;UseRainbowFirmware=false;
+            PreparedFirmware=null;LoadedFirmware=null;firmwareSource=null;UseSelectedRainFirmware=false;
             var bytes=await Firmware.ReadUpdaterAsync(dialog.FileName,lifetime.Token);
             var inspection=await Task.Run(()=>Firmware.Inspect(bytes));
             firmwareSource=bytes;LoadedFirmware=inspection;
@@ -54,9 +54,11 @@ internal sealed partial class MainForm
             PreparedFirmware=null;FirmwareStatus="Leyendo y respaldando los cuatro perfiles, bindeos y macros…";
             await RefreshKeyboard();
             Firmware.ValidateTarget(deviceRevision);
-            byte[] source=UseRainbowFirmware?await Task.Run(()=>Firmware.WithRainbow(firmwareSource)):firmwareSource;
+            byte[] source=UseSelectedRainFirmware?await Task.Run(()=>Firmware.WithSelectedRain(firmwareSource)):firmwareSource;
             PreparedFirmware=await Firmware.PrepareAsync(source,Snapshot!,deviceRevision,FirmwareRoot,lifetime.Token);
-            FirmwareStatus="Paquete verificado con los ajustes leídos del teclado. Los borradores no se aplican. Tú inicias la grabación con Start update en la herramienta.";
+            FirmwareStatus=UseSelectedRainFirmware
+                ? "Paquete con tus ajustes conservados. Tras instalar, perfil 2, modo 23, Colorful y velocidad mínima reproducen la selección. Tú inicias Start update."
+                : "Paquete verificado con los ajustes leídos del teclado. Los borradores no se aplican. Tú inicias la grabación con Start update en la herramienta.";
             SetStatus("Respaldo y paquete preparados. No se ha escrito firmware.");
         });
     }
@@ -100,7 +102,7 @@ internal sealed partial class MainForm
         if(!FirmwareNeedsVerification)return;
         if(MessageBox.Show(this,"Esto cierra el seguimiento sin confirmar la instalación ni comparar la configuración. Los respaldos se conservan. No se ejecutará ninguna restauración.\n\nAntes de editar tendrás que volver a leer el teclado. Cierra primero el actualizador si sigue abierto.\n\n¿Cerrar el seguimiento pendiente?","Seguimiento de firmware",MessageBoxButtons.YesNo,MessageBoxIcon.Question,MessageBoxDefaultButton.Button2)!=DialogResult.Yes)return;
         NativeHid.RequireOtherAppsClosed();Firmware.ClearPending(FirmwareRoot);
-        FirmwareNeedsVerification=false;PreparedFirmware=null;LoadedFirmware=null;firmwareSource=null;UseRainbowFirmware=false;
+        FirmwareNeedsVerification=false;PreparedFirmware=null;LoadedFirmware=null;firmwareSource=null;UseSelectedRainFirmware=false;
         session?.Dispose();session=null;Snapshot=null;DeviceMacros=[];
         FirmwareStatus="Seguimiento cerrado sin verificar la actualización. Respaldos conservados. Vuelve a leer el teclado antes de editar.";SetStatus(FirmwareStatus);
     }

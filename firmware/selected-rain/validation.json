@@ -1,0 +1,232 @@
+{
+  "candidate": "selected-rain-fixed-preset",
+  "date": "2026-10-30",
+  "device_access": false,
+  "installed": false,
+  "updater_created": false,
+  "firmware_image_exported": false,
+  "packaged_sections_equal_emulated_candidate": true,
+  "native_layout": {
+    "device_access": false,
+    "installed": false,
+    "updater_created": false,
+    "firmware_image_exported": false,
+    "linked_at_real_addresses": true,
+    "core_bytes": 822,
+    "init_adapter_bytes": 48,
+    "core_and_adapters_bytes": 930,
+    "including_dispatch_bytes": 940,
+    "state_bytes": 56,
+    "existing_allowed_capacity_bytes": 971,
+    "blocks": [
+      {
+        "address": "0x394c",
+        "bytes": 132
+      },
+      {
+        "address": "0x3b12",
+        "bytes": 94
+      },
+      {
+        "address": "0x4c6c",
+        "bytes": 188
+      },
+      {
+        "address": "0x523c",
+        "bytes": 408
+      },
+      {
+        "address": "0x3bf8",
+        "bytes": 48
+      },
+      {
+        "address": "0x39d8",
+        "bytes": 32
+      },
+      {
+        "address": "0x53e4",
+        "bytes": 28
+      },
+      {
+        "address": "0x3f50",
+        "bytes": 10
+      }
+    ],
+    "normalized_code_sha256": "fcf256c124f1125a7e3a8838c46a5aa96e58650252e9ece7ed7547f7e55f470b",
+    "full_configuration_unchanged": true,
+    "effect1_preserved": true,
+    "limits": [
+      "No USB controls yet",
+      "Compact routes, not complete browser geometry",
+      "RGB rounding can differ by one unit from old /255 scaling",
+      "Per-drop speed quantized to six row delays",
+      "No physical/recovery proof"
+    ]
+  },
+  "native_verification": {
+    "device_access": false,
+    "installed": false,
+    "updater_created": false,
+    "firmware_image_exported": false,
+    "passed": 1199,
+    "failed": 0,
+    "native_RGB_frames": 24000,
+    "other_profile_mode_cases": 1023,
+    "fixed_entry_frames": 111,
+    "nominal_entry_ms_at_speed4": 1998,
+    "nominal_traversal_ms_at_speed4": [
+      1620,
+      1710,
+      1800,
+      1890,
+      1980,
+      2070
+    ],
+    "mean_traversal_ms": 1845,
+    "colour_cycle_ms": 4500,
+    "state_bytes": 56,
+    "no_overlapping_reserved_routes": true,
+    "distinct_active_hue_offsets": true,
+    "macro_final_no_repeat": true,
+    "ROM_readonly": true,
+    "bounded_RAM_writes": true,
+    "callee_saved_R4_to_R11_and_stack_verified": true,
+    "lowest_stack_address": "0x20000758",
+    "stack_from_call_boundary": 104,
+    "active_drop_histogram": {
+      "1": 520,
+      "2": 730,
+      "3": 3310,
+      "4": 13080,
+      "5": 6360
+    },
+    "dark_frame_threshold": 26,
+    "dark_frames_after_warmup_brightness4": 0,
+    "longest_dark_seconds": 0.0,
+    "timing": [
+      {
+        "saved_speed": 0,
+        "nominal_frame_ms": 6,
+        "calls": 1500
+      },
+      {
+        "saved_speed": 1,
+        "nominal_frame_ms": 9,
+        "calls": 1000
+      },
+      {
+        "saved_speed": 2,
+        "nominal_frame_ms": 12,
+        "calls": 750
+      },
+      {
+        "saved_speed": 3,
+        "nominal_frame_ms": 15,
+        "calls": 600
+      },
+      {
+        "saved_speed": 4,
+        "nominal_frame_ms": 18,
+        "calls": 500
+      }
+    ],
+    "elapsed_s": 111.51,
+    "limits": [
+      "Emulation only; no hardware/recovery proof",
+      "Controls are still fixed constants",
+      "Entry fixed across per-drop paces, not independent of the native speed slider",
+      "Packed routes approximate browser geometry",
+      "One-unit RGB rounding differences allowed by the new alpha calculation"
+    ]
+  },
+  "long_run": {
+    "device_access": false,
+    "installed": false,
+    "native_frames": 100000,
+    "nominal_simulated_seconds": 1800,
+    "seed": 30241,
+    "active_drop_histogram": {
+      "1": 52,
+      "2": 362,
+      "3": 10762,
+      "4": 61054,
+      "5": 27770
+    },
+    "max_active": 5,
+    "births": 1246,
+    "birth_gap_seconds_min_max": [
+      0.9179999999999999,
+      3.582
+    ],
+    "dark_threshold": 26,
+    "dark_frames_after_warmup": 0,
+    "longest_dark_seconds": 0.0,
+    "no_reserved_route_overlaps": true,
+    "distinct_active_hue_offsets": true,
+    "RGB_reference_matches": true,
+    "elapsed_s": 259.73,
+    "hardware_output_unverified": true
+  },
+  "packaged_build": {
+    "analysis_only": true,
+    "device_access": false,
+    "firmware_image_created": false,
+    "updater_created": false,
+    "compiler_version": "0.13.0",
+    "total_bytes": 940,
+    "excluding_native_dispatch_bytes": 930,
+    "blocks": [
+      {
+        "address": "0x394c",
+        "bytes": 132,
+        "sha256": "920806fdf8d64d7af1fcbc947cda8ef3b93def9824304547873cf589488a9b40"
+      },
+      {
+        "address": "0x39d8",
+        "bytes": 32,
+        "sha256": "f77c73e09f10a91eb9794250acea3d80a487cf05d3257f2c93fe03966a381c1d"
+      },
+      {
+        "address": "0x3b12",
+        "bytes": 94,
+        "sha256": "60dd38778baadd69da7387bf912676e40fd449b446b7b0ab55e8b581c16aedab"
+      },
+      {
+        "address": "0x3bf8",
+        "bytes": 48,
+        "sha256": "b1d0dc195299d5f98bbf4d22ba0b622f7ee31617e5588e6dbb3b6811c791601f"
+      },
+      {
+        "address": "0x3f50",
+        "bytes": 10,
+        "sha256": "6ba46c4a7b557c7f2db2003972c620fb25b16b53a2eec306bc0df1a78c8e2dab"
+      },
+      {
+        "address": "0x4c6c",
+        "bytes": 188,
+        "sha256": "a0cdb9c0e8a05addc2b0fffff3cf6a0c82f21e6c73272cc1d7376444096dfe71"
+      },
+      {
+        "address": "0x523c",
+        "bytes": 408,
+        "sha256": "db8935b48b4e474f99f3713b233bb1e39e578a00555c8dce430e254c6591bf41"
+      },
+      {
+        "address": "0x53e4",
+        "bytes": 28,
+        "sha256": "5c582d6a6d2a23202c8a0cc3797d10a0b2450ce3d3147e32459ecc6b2195f104"
+      }
+    ]
+  },
+  "configurable_engine_probe": {
+    "engine_only_bytes": 970,
+    "verified_or_integrated": false,
+    "missing": [
+      "USB identity/capability handshake",
+      "bounds validation and atomic application",
+      "persistent storage and load on mode changes",
+      "Studio controls and compatibility checks",
+      "dynamic path generation or arbitrary softness curves"
+    ]
+  }
+}

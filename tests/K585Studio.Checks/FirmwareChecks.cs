@@ -19,6 +19,13 @@ internal static class FirmwareChecks
         check(Firmware.Inspect(rainbow).Identity==Firmware.Known[2],"Embedded delta reconstructs exact offline rainbow candidate code");
         check(Firmware.WithRainbow(rainbow).SequenceEqual(rainbow),"Applying rainbow to the exact candidate is idempotent");
         check(rainbow.AsSpan(Firmware.PayloadOffset+0x5400,0x1f80).SequenceEqual(input.AsSpan(Firmware.PayloadOffset+0x5400,0x1f80)),"Rainbow delta carries no profile data and preserves source settings");
+        var selected=Firmware.WithSelectedRain(input);
+        check(Firmware.Inspect(selected).Identity==Firmware.Known[3],"Selected preset reconstructs the exact optimized candidate code");
+        check(Firmware.WithSelectedRain(selected).SequenceEqual(selected),"Selected rain conversion is idempotent");
+        check(Firmware.WithSelectedRain(rainbow).SequenceEqual(selected),"Original or previous rainbow converts to the same selected candidate");
+        check(selected.AsSpan(Firmware.PayloadOffset+0x5400).SequenceEqual(input.AsSpan(Firmware.PayloadOffset+0x5400)),"Selected delta preserves configuration, startup data and ROM tail");
+        check(selected.AsSpan(Firmware.PayloadOffset+0x35d4,0x11a).SequenceEqual(input.AsSpan(Firmware.PayloadOffset+0x35d4,0x11a))&&selected.AsSpan(Firmware.PayloadOffset+0x4d29,0x347).SequenceEqual(input.AsSpan(Firmware.PayloadOffset+0x4d29,0x347)),"Selected rain preserves effect 1 and its native palette");
+        reject(()=>Firmware.WithRainbow(selected),"An unverified downgrade from selected rain to the older rainbow was accepted");
         byte[] Data(int count,int salt)=>Enumerable.Range(0,count).Select(i=>(byte)((i+salt)%251)).ToArray();
         var snapshot=new Snapshot(DateTimeOffset.UtcNow,Data(128,1),Data(256,2),Data(768,3),Data(6144,4),Data(768,5));snapshot.General[10]=0;
         for(int profile=1;profile<=4;profile++)(Lighting.Default with{Mode=1}).Bytes().CopyTo(snapshot.Illumination,(profile-1)*64);
@@ -27,6 +34,12 @@ internal static class FirmwareChecks
         check(Firmware.Inspect(output).Identity==info.Identity,"Configuration injection preserves all firmware code and immutable data");
         Firmware.AssertConfiguration(output,snapshot);check(true,"Every profile, all bindings, macros, RGB and general settings embedded exactly");
         Firmware.AssertConfiguration(Firmware.Build(rainbow,snapshot,0x108),snapshot);check(true,"Rainbow preparation preserves all four profiles exactly");
+        Firmware.AssertConfiguration(Firmware.Build(selected,snapshot,0x108),snapshot);check(true,"Selected preset preparation preserves all four profiles exactly");
+        var selectedP2=snapshot with{Illumination=snapshot.Illumination.ToArray()};
+        (Lighting.Default with{Colorful=true}).Bytes().CopyTo(selectedP2.Illumination,64);
+        Firmware.AssertConfiguration(Firmware.Build(selected,selectedP2,0x108),selectedP2);check(true,"Selected mode 23 is accepted in profile 2 without silently altering its lighting fields");
+        selectedP2.Illumination[128]=23;reject(()=>Firmware.Build(selected,selectedP2,0x108),"Selected mode 23 was accepted outside profile 2");
+        selectedP2.Illumination[128]=20;reject(()=>Firmware.Build(selected,selectedP2,0x108),"Removed mode 20 was accepted with selected rain");
         check(output.AsSpan(0,Firmware.PayloadOffset).SequenceEqual(input.AsSpan(0,Firmware.PayloadOffset))&&output.AsSpan(Firmware.PayloadOffset+Firmware.PayloadBytes).SequenceEqual(input.AsSpan(Firmware.PayloadOffset+Firmware.PayloadBytes)),"Only updater payload changes");
         int changed=0;bool confined=true;for(int i=0;i<output.Length;i++)if(output[i]!=input[i]){changed++;confined&=i>=Firmware.PayloadOffset+0x5400&&i<Firmware.PayloadOffset+0x7380;}
         check(confined,"Every changed byte lies inside persistent settings");

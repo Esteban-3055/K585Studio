@@ -1,4 +1,12 @@
-# Validación de v0.3.2
+# Validación de v0.3.3
+
+Release y portable locales v0.3.3: cero avisos y errores, 584 comprobaciones de modelo/protocolo/firmware/actualizaciones y 87 de interfaz aprobadas. La modificación seleccionada se reconstruye exactamente desde original, Serpenteo y arcoíris anterior; se conservan perfiles, macros, RGB, datos de arranque y las restricciones de modo. La conversión es idempotente y se rechazan bases o cambios no reconocidos.
+
+El preset ocupa 930 bytes con adaptadores, más diez de despacho. Su código y las fuentes enlazadas coinciden byte a byte con el candidato que pasó 124.000 cuadros nativos, incluidos 30 minutos nominales con otra semilla. La vista previa coincide con 24.000 cuadros ARM en diez combinaciones de color y brillo. Véanse [las fuentes y la evidencia](../firmware/selected-rain/README.md).
+
+Las comprobaciones de v0.3.3 no abren HID ni ejecutan el actualizador de firmware. La instalación, actualización y desinstalación de Studio se comprueban en el runner de GitHub antes de publicar. El nuevo firmware sigue pendiente de observación física y los parámetros configurables quedan aplazados.
+
+## Validación de v0.3.2
 
 Resultado local v0.3.2: Release sin avisos, 574 comprobaciones de modelo/protocolo/firmware/actualizaciones y 87 de interfaz aprobadas. El recurso integrado coincide con el EXE original completo por tamaño y SHA-256; cada carga es independiente. La preparación y verificación se prueban con ajustes ficticios en una carpeta temporal, incluida la modificación arcoíris. No se ejecuta el actualizador ni se abre HID.
 

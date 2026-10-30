@@ -116,8 +116,8 @@ internal sealed partial class MainForm : Form
             case "firmware-open":await OpenFirmwareUpdater();break;
             case "firmware-verify":await VerifyFirmwareConfiguration();break;
             case "firmware-backup":if(PreparedFirmware is {} backup)Open(Path.GetDirectoryName(backup.Path)!);break;
-            case "firmware-rainbow":
-                if(HasFirmwareSource&&!FirmwareNeedsVerification){UseRainbowFirmware=!UseRainbowFirmware;PreparedFirmware=null;FirmwareStatus=UseRainbowFirmware?"Se preparará la lluvia arcoíris experimental, comprobada en emulación. Todavía no se ha instalado.":"Se usará el firmware del EXE cargado, conservando tus ajustes actuales.";}
+            case "firmware-selected-rain":
+                if(HasFirmwareSource&&!FirmwareNeedsVerification){UseSelectedRainFirmware=!UseSelectedRainFirmware;PreparedFirmware=null;FirmwareStatus=UseSelectedRainFirmware?"Selección fija: caída media 1,845 s, entrada 1,998 s, ciclo 4,5 s y cinco gotas. Comprobada en emulación; todavía no instalada.":"Se usará el firmware del EXE cargado, conservando tus ajustes actuales.";}
                 break;
             case "firmware-stop-tracking":StopFirmwareTracking();break;
             case "read":await ReadKeyboard();break;
@@ -458,13 +458,13 @@ internal sealed partial class MainForm : Form
             Await(HandleCommand("firmware-bundled"));Render("firmware-loaded");
             Assert(HasFirmwareSource&&LoadedFirmware?.UpdaterSha256==Firmware.BundledUpdaterSha256,"Bundled updater loads and verifies in memory without an external file");
             Assert(canvas.Hits.Single(h=>h.Id=="firmware-prepare").Enabled&&!canvas.Hits.Single(h=>h.Id=="firmware-open").Enabled,"Bundled updater enables preparation but never launch");
-            Assert(!UseRainbowFirmware,"Experimental rainbow preparation is opt-in");
-            Await(HandleCommand("firmware-rainbow"));Render("firmware-rainbow");Assert(UseRainbowFirmware&&PreparedFirmware==null,"Experimental choice is a local draft and invalidates any prepared package");
+            Assert(!UseSelectedRainFirmware,"Experimental selected rain preparation is opt-in");
+            Await(HandleCommand("firmware-selected-rain"));Render("firmware-selected-rain");Assert(UseSelectedRainFirmware&&PreparedFirmware==null,"Experimental choice is a local draft and invalidates any prepared package");
             FirmwareNeedsVerification=true;Render("firmware-pending");
             Assert(!canvas.Hits.Single(h=>h.Id=="firmware-load").Enabled&&!canvas.Hits.Single(h=>h.Id=="firmware-open").Enabled&&canvas.Hits.Single(h=>h.Id=="firmware-verify").Enabled,"Pending firmware exposes verification and prevents another updater");
             Assert(!CanWrite,"Unverified firmware flow prevents configuration writes");
             int beforeProfile=Profile;Await(HandleCommand("profile-4"));Assert(Profile==beforeProfile,"Pending firmware cannot change keyboard profile");
-            FirmwareNeedsVerification=false;LoadedFirmware=null;firmwareSource=null;FirmwareTab=false;UseRainbowFirmware=false;
+            FirmwareNeedsVerification=false;LoadedFirmware=null;firmwareSource=null;FirmwareTab=false;UseSelectedRainFirmware=false;
             Page=StudioPage.Profile;Render("profile-1040x660",1040,660);Render("profile-1920x1080",1920,1080);
             using(var dialog=new AssignmentDialog("W",new("Teclado","Ctrl + X"),Draft.Macros))Assert(dialog.ValidateSelection()==new Assignment("Teclado","Ctrl + X"),"Assignment editor preserves combo");
             using(var dialog=new MacroDialog(macro,[])){Assert(dialog.GetDraft().Steps.Count==2,"Macro editor loads steps");dialog.Reorder(0,1);Assert(dialog.GetDraft().Steps[0].Action=="Tecla ↑","Macro reordering works");}

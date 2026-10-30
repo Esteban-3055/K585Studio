@@ -2,6 +2,7 @@
   <PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="RainbowPatch.json" />
+    <EmbeddedResource Include="SelectedRainPatch.json" />
     <EmbeddedResource Include="Assets/Update_Firmware.exe.gz" />
   </ItemGroup>
 </Project>
