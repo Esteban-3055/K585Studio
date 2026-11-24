@@ -40,22 +40,33 @@ internal sealed class StudioCanvas : Control
         if (bold) { using var font = new Font(F(size), FontStyle.Bold); g.DrawString(text, font, brush, new RectangleF(x,y,width,height), format); }
         else g.DrawString(text,F(size),brush,new RectangleF(x,y,width,height),format);
     }
-    private static Color Shade(float strength) => Color.FromArgb((int)(9 - 9 * strength), (int)(19 + 138 * strength), (int)(27 + 228 * strength));
     private static void Card(Graphics g, RectangleF rect, bool selected = false, int radius = 16)
     {
-        using var shape = Theme.Rounded(rect, radius);
-        using var brush = new LinearGradientBrush(rect, selected ? Shade(.25f) : Theme.Surface, selected ? Shade(.14f) : Color.FromArgb(10,20,28), 40);
-        using var pen = new Pen(selected ? Theme.Blue : Theme.Border, selected ? 3 : 1.2f);
-        g.FillPath(brush,shape);g.DrawPath(pen,shape);
+        using var shape = Theme.Angular(rect, radius);
+        using var brush = new LinearGradientBrush(rect, selected ? Theme.Selection : Theme.Surface, Theme.Background, 90);
+        using var pen = new Pen(selected ? Theme.Accent : Theme.Border, selected ? 1.7f : 1.1f);
+        g.FillPath(brush,shape);
+        if(selected)Theme.Glow(g,shape);
+        g.DrawPath(pen,shape);
+        if(rect.Height>=150 || selected)
+        {
+            using var accent = new Pen(Theme.Accent, selected ? 2.5f : 2);
+            if(rect.Height>=150)
+            {
+                g.DrawLines(accent,new PointF[]{new(rect.X+8,rect.Y+35),new(rect.X+8,rect.Y+18),new(rect.X+18,rect.Y+8),new(rect.X+42,rect.Y+8)});
+                using var tip=new SolidBrush(Theme.Accent);
+                g.FillPolygon(tip,new PointF[]{new(rect.X+10,rect.Y+26),new(rect.X+26,rect.Y+10),new(rect.X+34,rect.Y+10),new(rect.X+10,rect.Y+34)});
+            }
+            g.DrawLines(accent,new PointF[]{new(rect.Right-44,rect.Bottom-6),new(rect.Right-23,rect.Bottom-6),new(rect.Right-6,rect.Bottom-23)});
+        }
     }
     private void Hit(string id, RectangleF rect, string label, bool enabled = true, int min = 0, int max = 0) => hits.Add(new(id,rect,label,enabled,min,max));
     private void Button(Graphics g, string id, string label, RectangleF rect, bool primary = false, bool enabled = true)
     {
         enabled &= !Host.Busy || id is "close" or "minimize" or "maximize";
         Card(g,rect, primary && enabled,10);
-        if (primary && enabled) { using var shape=Theme.Rounded(rect,10); using var brush = new SolidBrush(Color.FromArgb(0,98,198)); g.FillPath(brush,shape); }
         int size=22;while(size>17 && g.MeasureString(label,F(size)).Width > rect.Width-22)size--;
-        DrawText(g,label,rect.X+8,rect.Y,size,enabled?Theme.Ink:Color.FromArgb(92,115,138),rect.Width-16,rect.Height,center:true);
+        DrawText(g,label,rect.X+8,rect.Y,size,enabled?Theme.Ink:Theme.Disabled,rect.Width-16,rect.Height,center:true);
         Hit(id,rect,label,enabled);
     }
     private void Field(Graphics g,string id,string value,RectangleF rect,bool enabled=true)
@@ -68,19 +79,20 @@ internal sealed class StudioCanvas : Control
         value=Math.Clamp(value,0,4);
         DrawText(g,label,rect.X,rect.Y-40,21,enabled?Theme.Ink:Theme.Muted,rect.Width,32);
         var track=new RectangleF(rect.X+10,rect.Y+15,rect.Width-20,8);
-        using var path=Theme.Rounded(track,4);using var bg=new SolidBrush(Color.FromArgb(31,50,66));g.FillPath(bg,path);
+        using var path=Theme.Rounded(track,4);using var bg=new SolidBrush(Theme.Selection);g.FillPath(bg,path);
         float x=track.X+track.Width*value/4f;
-        if(value>0){using var fill=new SolidBrush(enabled?Theme.Blue:Theme.Border);g.FillRectangle(fill,track.X,track.Y,x-track.X,8);}
-        for(int i=0;i<5;i++){using var dot=new SolidBrush(i<=value&&enabled?Theme.Blue:Theme.Border);g.FillEllipse(dot,track.X+i*track.Width/4-3,track.Y+14,6,6);}
-        using(var knob=new SolidBrush(enabled?Theme.Blue:Theme.Muted))g.FillEllipse(knob,x-9,track.Y-5,18,18);
+        if(value>0){using var fill=new SolidBrush(enabled?Theme.Accent:Theme.Border);g.FillRectangle(fill,track.X,track.Y,x-track.X,8);}
+        for(int i=0;i<5;i++){using var dot=new SolidBrush(i<=value&&enabled?Theme.Accent:Theme.Border);g.FillEllipse(dot,track.X+i*track.Width/4-3,track.Y+14,6,6);}
+        using(var knob=new SolidBrush(enabled?Theme.Accent:Theme.Muted))g.FillEllipse(knob,x-9,track.Y-5,18,18);
         Hit(id,rect,label,enabled&&!Host.Busy,0,4);
     }
     private void Toggle(Graphics g,string id,string label,bool value,RectangleF rect,bool enabled=true)
     {
         DrawText(g,label,rect.X,rect.Y,20,enabled?Theme.Ink:Theme.Muted,rect.Width-64,rect.Height);
         var shape=new RectangleF(rect.Right-56,rect.Y+(rect.Height-26)/2,50,26);
-        using var path=Theme.Rounded(shape,13);using var brush=new SolidBrush(value?Color.FromArgb(0,98,198):Theme.Border);g.FillPath(brush,path);
-        using var knob=new SolidBrush(value?Theme.Ink:Theme.Muted);g.FillEllipse(knob,shape.X+(value?27:3),shape.Y+3,20,20);
+        using var path=Theme.Rounded(shape,13);using var brush=new SolidBrush(value?Theme.Accent:Theme.Selection);g.FillPath(brush,path);
+        using var outline=new Pen(enabled?Theme.Muted:Theme.Border);g.DrawPath(outline,path);
+        using var knob=new SolidBrush(value?Theme.Background:Theme.Muted);g.FillEllipse(knob,shape.X+(value?27:3),shape.Y+3,20,20);
         Hit(id,rect,label,enabled&&!Host.Busy);
     }
     private void Icon(Graphics g,string name,float x,float y,float size,Color? color=null)
@@ -95,24 +107,37 @@ internal sealed class StudioCanvas : Control
         {var teeth=Enumerable.Range(0,32).Select(i=>{double angle=i*Math.PI/16;double radius=size*(i%4 is 1 or 2?.5:.38);return new PointF(x+size/2+(float)(Math.Cos(angle)*radius),y+size/2+(float)(Math.Sin(angle)*radius));}).ToArray();g.DrawPolygon(pen,teeth);g.DrawEllipse(pen,x+size*.35f,y+size*.35f,size*.3f,size*.3f);}
         else {g.DrawRectangle(pen,x+size*.1f,y+size*.1f,size*.8f,size*.8f);for(int i=0;i<3;i++)g.DrawLine(pen,x+size*.25f,y+size*(.3f+i*.2f),x+size*.75f,y+size*(.3f+i*.2f));}
     }
+    private static void Texture(Graphics g, RectangleF area)
+    {
+        var saved=g.Save();g.SetClip(area,CombineMode.Intersect);
+        using var line=new Pen(Color.FromArgb(30,30,33),1);
+        for(float y=area.Y-24;y<area.Bottom+24;y+=25)
+            for(float x=area.X-30;x<area.Right+30;x+=42)
+            {
+                float offset=((int)((y-area.Y+24)/25)%2)*21;
+                g.DrawPolygon(line,new PointF[]{new(x+offset,y),new(x+offset+20,y+32),new(x+offset+40,y)});
+            }
+        g.Restore(saved);
+    }
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;g.TextRenderingHint=TextRenderingHint.ClearTypeGridFit;
         scale=Math.Min(Width/ReferenceWidth,Height/ReferenceHeight);dx=(Width-ReferenceWidth*scale)/2;dy=(Height-ReferenceHeight*scale)/2;
         g.TranslateTransform(dx,dy);g.ScaleTransform(scale,scale);hits.Clear();
         using(var brush=new SolidBrush(Theme.Background))g.FillRectangle(brush,0,0,ReferenceWidth,ReferenceHeight);
+        Texture(g,new(960,0,475,62));Texture(g,new(0,836,278,46));
         using(var pen=new Pen(Theme.Border)){g.DrawLine(pen,0,64,1672,64);g.DrawLine(pen,279,64,279,882);g.DrawLine(pen,0,882,1672,882);g.DrawRectangle(pen,1,1,1670,939);}
         var previousInterpolation=g.InterpolationMode;g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.DrawImage(applicationImage,new RectangleF(24,12,40,40));g.InterpolationMode=previousInterpolation;
         DrawText(g,"K585 Studio",76,8,25,width:210,bold:true);DrawText(g,"│",288,8,26,Theme.Muted,25);
         DrawText(g,"Redragon K585RGB",328,8,23,Theme.Muted,650);
-        DrawText(g,Host.Snapshot==null?"Sin conectar":$"Perfil activo: {Host.Snapshot.ActiveProfile}",1080,10,20,Host.Snapshot==null?Theme.Muted:Color.FromArgb(0,237,111),330);
+        DrawText(g,Host.Snapshot==null?"Sin conectar":$"Perfil activo: {Host.Snapshot.ActiveProfile}",1080,10,20,Host.Snapshot==null?Theme.Muted:Theme.Ink,330);
         Button(g,"minimize","−",new(1450,8,54,45));Button(g,"maximize","□",new(1524,8,54,45));Button(g,"close","×",new(1598,8,54,45));
         var nav=new[]{("profile-1","Perfil 1","keyboard"),("profile-2","Perfil 2","keyboard"),("profile-3","Perfil 3","keyboard"),("profile-4","Perfil 4","keyboard"),("macros","Macros","macro"),("settings","Configuración","settings"),("updates","Actualizaciones","update")};
         for(int i=0;i<nav.Length;i++)
         {
             var (id,name,icon)=nav[i];bool selected=id==(Host.Page==StudioPage.Profile?$"profile-{Host.Profile}":Host.Page.ToString().ToLowerInvariant());
             var rect=new RectangleF(8,85+i*76,262,70);
-            if(selected){Card(g,rect,true,12);using var brush=new SolidBrush(Theme.Blue);g.FillRectangle(brush,8,rect.Y+5,5,rect.Height-10);}
+            if(selected)Card(g,rect,true,22);
             Icon(g,icon,36,rect.Y+18,35,selected?Theme.Ink:Theme.Muted);DrawText(g,name,100,rect.Y,22,selected?Theme.Ink:Theme.Muted,164,rect.Height);
             Hit(id,rect,name,!Host.Busy);
         }
@@ -120,9 +145,14 @@ internal sealed class StudioCanvas : Control
         DrawText(g,Host.Snapshot==null?"K585 sin lectura":"Lectura verificada",38,712,21,width:208,height:30);
         DrawText(g,"4 perfiles editables",38,749,18,Theme.Muted,210,26);Button(g,"read","Conectar / leer",new(38,785,204,36),true);
         switch(Host.Page){case StudioPage.Profile:ProfilePage(g);break;case StudioPage.Macros:MacroPage(g);break;case StudioPage.Settings:SettingsPage(g);break;case StudioPage.Updates:UpdatesPage(g);break;}
-        using(var brush=new SolidBrush(Host.Busy?Color.FromArgb(246,212,31):Host.Snapshot==null?Theme.Muted:Color.FromArgb(0,237,111)))g.FillEllipse(brush,24,902,18,18);
+        using(var brush=new SolidBrush(Host.Busy?Color.FromArgb(246,212,31):Host.Snapshot==null?Theme.Muted:Theme.Ink))g.FillEllipse(brush,24,902,18,18);
         DrawText(g,$"K585 Studio v{Updates.Current}  │  "+(Host.Busy?"Operación en curso…":Host.Snapshot==null?"Sin conexión USB":"Configuración leída y respaldada"),60,890,18,Theme.Muted,900,42);
         DrawText(g,$"Editando perfil {Host.Profile}",1290,890,18,Theme.Muted,350,42);
+        using(var trim=new Pen(Theme.Border,2))
+        {
+            g.DrawLines(trim,new PointF[]{new(1230,922),new(1268,891),new(1660,891)});
+            for(int i=0;i<9;i++)g.DrawLine(trim,1182+i*9,917,1202+i*9,897);
+        }
         if(!string.IsNullOrWhiteSpace(Host.Notice))DrawText(g,Host.Notice,NoticeBounds.X,NoticeBounds.Y,18,Host.Error||Host.PendingMacroPreview is {Ready:false}?Theme.Orange:Theme.Muted,NoticeBounds.Width,NoticeBounds.Height);
         if(focusId!=null && hits.FirstOrDefault(h=>h.Id==focusId) is {} focus && Focused){using var pen=new Pen(Theme.Ink,2){DashStyle=DashStyle.Dot};g.DrawRectangle(pen,focus.Bounds.X+3,focus.Bounds.Y+3,focus.Bounds.Width-6,focus.Bounds.Height-6);}
     }
@@ -183,7 +213,7 @@ internal sealed class StudioCanvas : Control
             using var path=KeyPath(key,rect,keyboard.Width,keyboard.Height);
             if(modified||selected)
             {
-                using var glow=new Pen(Color.FromArgb(65,modified?Theme.Orange:Theme.Blue),8);using var pen=new Pen(modified?Theme.Orange:Theme.Ink,selected?2.4f:1.8f);
+                using var glow=new Pen(Color.FromArgb(65,modified?Theme.Orange:Theme.Accent),8);using var pen=new Pen(modified?Theme.Orange:Theme.Ink,selected?2.4f:1.8f);
                 g.DrawPath(glow,path);g.DrawPath(pen,path);
             }
             var bounds=path.GetBounds();Hit("key:"+key.Name,bounds,"Tecla "+key.Name);
@@ -211,7 +241,7 @@ internal sealed class StudioCanvas : Control
             for(int i=0;i<limit;i++)
             {
                 var step=macro.Steps[i];float y=364+i*37;
-                if(i%2==0){using var brush=new SolidBrush(Color.FromArgb(14,30,42));g.FillRectangle(brush,698,y,918,36);}
+                if(i%2==0){using var brush=new SolidBrush(Theme.Surface);g.FillRectangle(brush,698,y,918,36);}
                 DrawText(g,step.Action,710,y,20,width:290,height:35);DrawText(g,step.Value,1010,y,20,width:300,height:35);DrawText(g,step.DelayMs+" ms",1394,y,20,Theme.Muted,220,35);
             }
             if(macro.Steps.Count>9)DrawText(g,$"Y {macro.Steps.Count-9} pasos más en el editor…",710,708,19,Theme.Muted,900,30);
@@ -224,7 +254,7 @@ internal sealed class StudioCanvas : Control
     {
         DrawText(g,"Configuración",310,83,34,bold:true,width:1200,height:54);
         Card(g,new(304,170,650,308));DrawText(g,"Dispositivo y perfiles",328,190,26,bold:true,width:600,height:46);
-        DrawText(g,"Perfiles 1–4",328,254,21,width:200,height:40);DrawText(g,"Editables con respaldo y verificación",548,254,20,Color.FromArgb(0,237,111),370,40);
+        DrawText(g,"Perfiles 1–4",328,254,21,width:200,height:40);DrawText(g,"Editables con respaldo y verificación",548,254,20,Theme.Ink,370,40);
         Toggle(g,"rain-support","Firmware de lluvia instalado",Host.Draft.RainFirmwareConfirmed,new(328,317,602,48));
         DrawText(g,"Actívalo solo si el teclado ya tiene nuestro modo 23.\nEl gestor de firmware está en Actualizaciones.",328,386,20,Theme.Muted,600,65);
         Card(g,new(978,170,662,308));DrawText(g,"Actualizaciones",1002,190,26,bold:true,width:612,height:46);
@@ -250,7 +280,7 @@ internal sealed class StudioCanvas : Control
         if(Host.UpdateProgress is {} progress)
         {
             var rect=new RectangleF(332,415,1250,12);using var bg=new SolidBrush(Theme.Border);g.FillRectangle(bg,rect);
-            using var fill=new SolidBrush(Theme.Blue);g.FillRectangle(fill,rect.X,rect.Y,rect.Width*progress/100f,rect.Height);
+            using var fill=new SolidBrush(Theme.Accent);g.FillRectangle(fill,rect.X,rect.Y,rect.Width*progress/100f,rect.Height);
         }
         Card(g,new(304,545,1336,286));DrawText(g,"Versión operativa de escritorio",332,565,26,bold:true,width:1250,height:48);
         DrawText(g,"Iluminación, reasignación de teclas, macros y frecuencia USB en los cuatro perfiles.\nSeleccionar un perfil lo activa. Cada escritura se respalda y se verifica.\nEl instalador es para tu usuario y conserva los proyectos y respaldos.",332,610,23,Theme.Muted,1250,140);

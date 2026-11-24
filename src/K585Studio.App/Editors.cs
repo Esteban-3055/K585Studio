@@ -121,7 +121,7 @@ internal sealed class MacroDialog : Form
         layout.Controls.Add(Theme.Label("Editar macro",20,true),0,0);
         var meta=Theme.Row();name=Theme.TextBox(410);name.Text=original?.Name??NextName(names);meta.Controls.Add(name);meta.Controls.Add(Theme.Label("Repeticiones"));cycles=new NumericUpDown{Minimum=1,Maximum=Math.Max(255,original?.Cycles??1),Value=original?.Cycles??1,BackColor=Theme.Surface,ForeColor=Theme.Ink,Width=85};meta.Controls.Add(cycles);layout.Controls.Add(meta,0,1);
         grid=new DataGridView{Dock=DockStyle.Fill,BackgroundColor=Theme.Surface,BorderStyle=BorderStyle.None,AllowUserToAddRows=false,AllowUserToDeleteRows=false,RowHeadersVisible=false,AutoSizeColumnsMode=DataGridViewAutoSizeColumnsMode.Fill,SelectionMode=DataGridViewSelectionMode.FullRowSelect,MultiSelect=false,EnableHeadersVisualStyles=false};
-        grid.DefaultCellStyle.BackColor=Theme.Surface;grid.DefaultCellStyle.ForeColor=Theme.Ink;grid.DefaultCellStyle.SelectionBackColor=Color.FromArgb(16,60,90);grid.DefaultCellStyle.SelectionForeColor=Theme.Ink;
+        grid.DefaultCellStyle.BackColor=Theme.Surface;grid.DefaultCellStyle.ForeColor=Theme.Ink;grid.DefaultCellStyle.SelectionBackColor=Theme.Selection;grid.DefaultCellStyle.SelectionForeColor=Theme.Ink;
         grid.ColumnHeadersDefaultCellStyle.BackColor=Theme.Border;grid.ColumnHeadersDefaultCellStyle.ForeColor=Theme.Ink;grid.GridColor=Theme.Border;
         var action=new DataGridViewComboBoxColumn{HeaderText="Acción",FlatStyle=FlatStyle.Flat};action.Items.AddRange("Tecla ↓","Tecla ↑","Ratón ↓","Ratón ↑","Rueda","Pausa","OEM");grid.Columns.Add(action);
         grid.Columns.Add("Value","Tecla / botón");grid.Columns.Add("Delay","Pausa antes (ms)");grid.DataError+=(_,e)=>e.ThrowException=false;

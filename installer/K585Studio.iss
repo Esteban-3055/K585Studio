@@ -1,5 +1,5 @@
 #ifndef AppVersion
-  #define AppVersion "0.3.4"
+  #define AppVersion "0.3.5"
 #endif
 #ifndef PublishDir
   #define PublishDir "..\artifacts\K585Studio-win-x64"

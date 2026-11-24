@@ -41,7 +41,7 @@ internal sealed class KeyboardView : Control
             bool modified = Modified.Contains(key.Name), selected = SelectedKey == key.Name;
             if (!modified && !selected) continue;
             using var path = Path(key);
-            using var glow = new Pen(Color.FromArgb(75, modified ? Theme.Orange : Theme.Blue), selected ? 10 : 7);
+            using var glow = new Pen(Color.FromArgb(75, modified ? Theme.Orange : Theme.Accent), selected ? 10 : 7);
             using var pen = new Pen(modified ? Theme.Orange : Color.White, selected ? 3 : 2.5f);
             e.Graphics.DrawPath(glow, path); e.Graphics.DrawPath(pen, path);
         }
